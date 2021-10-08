@@ -2,8 +2,6 @@ import tkinter
 import numpy
 import random
 import time
-from multiprocessing import Process
-
 
 class Simulation():
 
