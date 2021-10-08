@@ -55,7 +55,10 @@ class Simulation():
         self.window.bind("<Button-3>", lambda x: self.nuke(x))
 
     def mainloop(self):
-        self.window.mainloop()
+        try: self.window.mainloop()
+        finally:
+            print('hai mon')
+            exit()
 
     def set_seed(self):
         for i in range(100):
@@ -188,9 +191,7 @@ def main():
     simulation = Simulation()
     simulation.set_seed()
     simulation.draw()
-    try: simulation.mainloop()
-    finally: 
-        print('hai mon')
-        simulation.window.quit()
+    simulation.mainloop()
+
 if __name__ == '__main__':
     main()
