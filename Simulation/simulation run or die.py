@@ -82,16 +82,26 @@ class Simulation():
             for y in range(self.array.shape[1]):
                 y_pos = y * self.block_size
                 x_pos = x * self.block_size
+                last_value = (self.last_states[-1][x][y] if self.last_states else 0)
                 if self.array[x][y] == 1:
-                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "green")
                     self.population[1] += 1
+                    if last_value != 1: 
+                        Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size,
+                                 fill = "green")
+                    else: self.array[x][y] = 0
                 elif self.array[x][y] == 2:
-                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "red")
                     self.population[2] += 1
+                    if last_value != 2:
+                        Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size,
+                              fill = "red")
+                    #else: self.array[x][y] = 0
                 elif self.array[x][y] == 3:
-                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "yellow")
                     self.population[3] += 1
-                else: self.population[0] += 1
+                    if last_value != 3:
+                        Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, 
+                                fill = "yellow")
+                    else: self.array[x][y] = 0
+                if self.array[x][y] == 0: self.population[0] += 1
 
     def iterate(self):
         for x in range(self.array.shape[0]):

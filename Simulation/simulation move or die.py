@@ -2,6 +2,8 @@ import tkinter
 import numpy
 import random
 import time
+from multiprocessing import Process
+
 
 class Simulation():
 
@@ -13,8 +15,11 @@ class Simulation():
         self.canvas           = Simulation.create_canvas(self)
         self.block_size       = 5
         self.last_states      = []
+        self.memory           = []
         self.auto_running     = False
         self.two_step         = False
+        self.population       = [0,0,0,0]
+        self.population_bar   = Simulation.create_population_bar(self)
         self.bind_keys()
         self.create_buttons()
                     
@@ -44,6 +49,14 @@ class Simulation():
         tkinter.Button(self.window, text='<Step', borderwidth=1, font=('Verdana','18'),
                     command= lambda: self.back()).grid(row=1, column=2)
 
+    def create_population_bar(self):
+        canvas = tkinter.Canvas(self.window, bg="black", height=20, width=self.width)
+        canvas.grid(row=2, columnspan=6)
+        return canvas
+
+    def clear_population_bar(self):
+        self.population_bar.delete("all")
+
     def bind_keys(self):
         self.window.bind("<KeyPress-Right>", lambda x: self.step())
         self.window.bind("<KeyPress-Left>", lambda x: self.back())
@@ -54,6 +67,7 @@ class Simulation():
         self.window.bind("<Button-3>", lambda x: self.nuke(x))
 
     def mainloop(self):
+
         self.window.mainloop()
 
     def set_seed(self):
@@ -63,17 +77,28 @@ class Simulation():
 
     def draw(self):
         self.clear_canvas()
+        self.population = [0,0,0,0]
         for x in range(self.array.shape[0]):
             for y in range(self.array.shape[1]):
                 y_pos = y * self.block_size
                 x_pos = x * self.block_size
                 last_value = (self.last_states[-1][x][y] if self.last_states else 0)
-                if self.array[x][y] == 1 and last_value != 1:
-                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "green")
-                elif self.array[x][y] == 2 and last_value != 2:
-                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "red")
-                elif self.array[x][y] == 3 and last_value != 3:
-                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "yellow")
+                if self.array[x][y] == 1:
+                    self.population[1] += 1
+                    if last_value != 1: 
+                        Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size,
+                                 fill = "green")
+                elif self.array[x][y] == 2:
+                    self.population[2] += 1
+                    if last_value != 2:
+                        Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size,
+                              fill = "red")
+                elif self.array[x][y] == 3:
+                    self.population[3] += 1
+                    if last_value != 3:
+                        Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, 
+                                fill = "yellow")
+                if self.array[x][y] == 0: self.population[0] += 1
 
     def iterate(self):
         for x in range(self.array.shape[0]):
@@ -92,6 +117,7 @@ class Simulation():
             self.last_states.remove(self.last_states[0])
         self.iterate()
         self.draw()
+        self.draw_population_bar()
 
     def back(self):
         ## bound to <Left Arrow Key>
@@ -99,6 +125,7 @@ class Simulation():
             self.array = self.last_states[-1]
             self.last_states.pop()
             self.draw()
+            self.draw_population_bar()
 
     def auto_run(self):
         ## bound to <Spacebar>
@@ -138,14 +165,15 @@ class Simulation():
         self.auto_running = False
         self.last_states = []
         self.clear_canvas()
+        self.clear_population_bar()
         self.set_seed()
         self.draw()
         self.window.update()
 
-    def nuke(self, click):
+    def nuke(self, event):
         ## bound to <Left-Click>
         nuke_radius = 10
-        array_x, array_y = round((click.x)/5), round((click.y)/5)
+        array_x, array_y = round((event.x)/5), round((event.y)/5)
         for row in range(array_x - nuke_radius, array_x + nuke_radius):
             for column in range(array_y - 10, array_y + 10):
                 try: self.array[max(row, 0)][max(column, 0)] = 0
@@ -153,31 +181,44 @@ class Simulation():
         self.draw()
         self.window.update()
 
+    def draw_population_bar(self):
+        self.clear_population_bar()
+        green_width = self.population[1]  / (self.array.shape[0] * self.array.shape[1]) * self.width
+        red_width = self.population[2]    / (self.array.shape[0] * self.array.shape[1]) * self.width
+        yellow_width = self.population[3] / (self.array.shape[0] * self.array.shape[1]) * self.width
+        self.population_bar.create_rectangle(0, 0, green_width, 20, fill='green')
+        self.population_bar.create_rectangle(green_width, 0, green_width+red_width, 20, fill='red')
+        self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
+
 class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
-        self.rectangle              = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
-        self.array_x_pos            = [x0 / simulation.block_size]
-        self.array_y_pos            = [y0 / simulation.block_size]
+        self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
         x_direction, y_direction = random.choice([1,-1]), random.choice([1,-1])
-        if simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] in [0,3]:
-            simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] = 1
+        target_x  = min(array_x_pos + x_direction,99)
+        target_y = min(array_y_pos + y_direction,99)
+        if simulation.array[target_x][target_y] in [0,3]:
+            simulation.array[target_x][target_y] = 1
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
         x_direction, y_direction = random.choice([1,-1]), random.choice([1,-1])
-        if simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] == 0:
+        target_x  = min(array_x_pos + x_direction,99)
+        target_y = min(array_y_pos + y_direction,99)
+        if simulation.array[target_x][target_y] == 0:
             simulation.array[array_x_pos][array_y_pos] = 0
-        if simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] in [0,1]:
-            simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] = 2
+        if simulation.array[target_x][target_y] in [0,1]:
+            simulation.array[target_x][target_y] = 2
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
         x_direction, y_direction = random.choice([1,-1]), random.choice([1,-1])
-        if simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] in [0,2]:
-            simulation.array[min(array_x_pos + x_direction,99)][min(array_y_pos + y_direction,99)] = 3
+        target_x  = min(array_x_pos + x_direction,99)
+        target_y = min(array_y_pos + y_direction,99)
+        if simulation.array[target_x][target_y] in [0,2]:
+            simulation.array[target_x][target_y] = 3
 
 def main():
     global simulation
