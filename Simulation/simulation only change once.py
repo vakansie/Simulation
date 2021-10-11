@@ -179,6 +179,7 @@ class Simulation():
 
     def toggle_random(self):
         self.random = not self.random
+        print(f"random spreading = {'ON' if self.random else 'OFF'}")
 
 
     def set_spreading_factor(self, sign):
