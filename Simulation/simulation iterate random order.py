@@ -223,7 +223,6 @@ class Simulation():
         self.clear_population_bar()
         self.set_seed()
         self.draw()
-        self.draw_population_bar()
         self.window.update()
 
     def nuke(self, mouse_click):
