@@ -219,6 +219,7 @@ class Simulation():
         self.spreading_factor = 1
         self.last_states = []
         self.changed_cells = []
+        print('SETTINGS RESET')
         self.clear_canvas()
         self.clear_population_bar()
         self.set_seed()
