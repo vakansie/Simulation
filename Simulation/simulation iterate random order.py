@@ -4,6 +4,8 @@ import random
 import time
 from itertools import permutations
 
+from numpy.lib.function_base import _gradient_dispatcher
+
 class Simulation():
 
     def __init__(self):
@@ -14,6 +16,7 @@ class Simulation():
         self.canvas           = self.create_canvas()
         self.block_size       = 5
         self.last_states      = []
+        self.seed             = []
         self.auto_running     = False
         self.faster_eating    = False
         self.recursive_eating = False
@@ -26,8 +29,10 @@ class Simulation():
         self.population       = [0,0,0,0]
         self.changed_cells    = []
         self.population_bar   = self.create_population_bar()
+        self.spread_slider    = self.create_slider()
         self.bind_keys()
         self.create_buttons()
+        self.create_menu()
 
     def create_window(self):
         window = tkinter.Tk()
@@ -54,6 +59,25 @@ class Simulation():
                     command= lambda: self.new_simulation()).grid(row=1, column=4)
         tkinter.Button(self.window, text='<Step', borderwidth=1, font=('Verdana','18'),
                     command= lambda: self.back()).grid(row=1, column=2)
+    
+    def create_menu(self):
+        menu_bar = tkinter.Menu(self.window, tearoff=0)
+        view_menu = tkinter.Menu(menu_bar)
+        view_menu.add_command(label='Toggle recursive eating    r', command=lambda: self.toggle_recursive_eating())
+        view_menu.add_command(label='Toggle spread direction    d', command=lambda: self.toggle_direction_choice())
+        view_menu.add_command(label='Toggle add reverse eating  f', command=lambda: self.toggle_faster_eating())
+        view_menu.add_command(label='Toggle random spreading    x', command=lambda: self.toggle_random_spread())
+        view_menu.add_command(label='Toggle random order        z', command=lambda: self.toggle_random_iter())
+        view_menu.add_command(label='Reset                Shift-r', command=lambda: self.reset())    
+        view_menu.add_command(label='New                  Shift-n', command=lambda: self.new_simulation())
+        menu_bar.add_cascade(label="Simulation options", menu=view_menu)
+        self.window.config(menu=menu_bar)
+
+    def create_slider(self):
+        spread_slider = tkinter.Scale(self.window, from_=8, to=1, command=lambda x: self.get_spread_from_slider())
+        spread_slider.set(self.spreading_factor)
+        spread_slider.grid(row=0, column=7)
+        return spread_slider
 
     def create_population_bar(self):
         canvas = tkinter.Canvas(self.window, bg="black", height=20, width=self.width)
@@ -68,7 +92,8 @@ class Simulation():
         self.window.bind("<KeyPress-Left>", lambda x: self.back())
         self.window.bind("<space>", lambda x: self.auto_run())
         self.window.bind("b", lambda x: self.auto_back())
-        self.window.bind("R", lambda x: self.new_simulation())
+        self.window.bind("R", lambda x: self.reset())
+        self.window.bind("N", lambda x: self.new_simulation())
         self.window.bind("2", lambda x: self.two_steps_one_back())
         self.window.bind("<Button-3>", lambda x: self.nuke(x))
         self.window.bind("f", lambda x: self.toggle_faster_eating())
@@ -89,6 +114,7 @@ class Simulation():
             x, y = random.choice(range(100)), random.choice(range(100))
             self.array[x][y] =  random.choice([1,2,3]) 
             self.changed_cells.append((x, y))
+        self.seed = self.array.copy()
 
     def draw(self):
         self.clear_canvas()
@@ -158,6 +184,12 @@ class Simulation():
             self.window.update()
             if len(self.last_states) == 0: self.auto_running = False
 
+    def reset(self):
+        ## bound to <Shift-R>
+        self.array = self.seed.copy()
+        self.draw()
+        self.window.update()
+
     def two_steps_one_back(self):
         ## bound to <2>
         self.auto_running = not self.auto_running
@@ -171,14 +203,17 @@ class Simulation():
             self.back()
 
     def toggle_faster_eating(self):
+        ## bound to <f>
         self.faster_eating = not self.faster_eating
         print(f"faster eating = {'ON' if self.faster_eating else 'OFF'}")
 
     def toggle_recursive_eating(self):
+        ## bound to <r>
         self.recursive_eating = not self.recursive_eating
         print(f"recursive eating = {'ON' if self.recursive_eating else 'OFF'}")
 
     def toggle_direction_choice(self):
+        ## bound to <d>
         if 0 in self.direction_choices:self.direction_choices.remove(0)
         else: self.direction_choices.append(0)
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
@@ -186,27 +221,35 @@ class Simulation():
         print(f'directions = {"ALL" if 0 in self.direction_choices else "DIAGONAL"}')
 
     def toggle_random_spread(self):
+        ## bound to <x>
         self.random_spread = not self.random_spread
         print(f"random spreading = {'ON' if self.random_spread else 'OFF'}")
 
     def toggle_random_iter(self):
+        ## bound to <z>
         self.random_iter_order = not self.random_iter_order
         print(f"random iter order = {'ON' if self.random_iter_order else 'OFF'}")
 
     def set_spreading_factor(self, sign):
+        ## bound to <+><->
         self.spreading_factor += sign
         if self.spreading_factor == 9: self.spreading_factor = 1
         if self.spreading_factor == 0: self.spreading_factor = 8
+        self.spread_slider.set(self.spreading_factor)
         print(f'spreading_factor = {self.spreading_factor}')
 
+    def get_spread_from_slider(self):
+        self.spreading_factor = self.spread_slider.get()
+
     def set_spin(self, sign):
+        ## bound to <KeyPress-Up> <KeyPress-Down>
         simulation.spin += sign
         if self.spin == len(self.direction_options): self.spin = 0
         if self.spin < 0: self.spreading_factor = len(self.direction_options) - 1
         print(f'spin = {self.spin}')
 
     def new_simulation(self):
-        ## bound to <Shift-r>
+        ## bound to <Shift-N>
         self.array = numpy.zeros((100, 100), dtype=numpy.int8)
         self.auto_running = False
         self.faster_eating = False
@@ -246,6 +289,11 @@ class Simulation():
         self.population_bar.create_rectangle(0, 0, green_width, 20, fill='green')
         self.population_bar.create_rectangle(green_width, 0, green_width+red_width, 20, fill='red')
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
+
+    def show_hotkey_window(self):
+        hotkey_window = tkinter.Toplevel()
+        text = tkinter.Text(hotkey_window, height = 5, width = 52)
+
 
 class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
