@@ -1,11 +1,8 @@
 import tkinter
-from tkinter.constants import Y
 import numpy
 import random
 import time
 from itertools import permutations
-
-from numpy.lib.function_base import _gradient_dispatcher
 
 class Simulation():
 
@@ -25,7 +22,7 @@ class Simulation():
         self.random_iter_order= True
         self.single_change    = True
         self.spreading_factor = 1
-        self.direction_choices= [-1, -1, 1, 1]
+        self.direction_choices= [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin             = random.randint(0, len(self.direction_options)-1)
         self.population       = [0,0,0,0]
@@ -74,6 +71,8 @@ class Simulation():
         view_menu.add_command(label='Reset                Shift-r', command=lambda: self.reset())    
         view_menu.add_command(label='New                  Shift-n', command=lambda: self.new_simulation())
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
+  #     self.recursive_check = tkinter.Checkbutton(self.window, text='recursive',variable=self.recursive_eating,
+  #      onvalue=True, offvalue=False, command=lambda: self.toggle_recursive_eating()).grid(row=1, column=7)
         self.window.config(menu=menu_bar)
 
     def create_slider(self):
@@ -249,7 +248,7 @@ class Simulation():
 
     def toggle_only_change_once(self):
         ## bound to <c>
-        self.single_change  = not self.single_change
+        self.single_change = not self.single_change
         print(f"only change once = {'ON' if self.single_change else 'OFF'}")
 
     def set_spreading_factor(self, sign):
@@ -285,6 +284,7 @@ class Simulation():
         self.spreading_factor = 1
         self.last_states = []
         self.changed_cells = {}
+        self.spread_slider.set(1)
         print('SETTINGS RESET')
         self.clear_canvas()
         self.clear_population_bar()
@@ -318,11 +318,6 @@ class Simulation():
         self.population_bar.create_rectangle(0, 0, green_width, 20, fill='green')
         self.population_bar.create_rectangle(green_width, 0, green_width+red_width, 20, fill='red')
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
-
-    def show_hotkey_window(self):
-        hotkey_window = tkinter.Toplevel()
-        text = tkinter.Text(hotkey_window, height = 5, width = 52)
-
 
 class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
