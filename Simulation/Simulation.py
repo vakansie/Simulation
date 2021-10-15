@@ -351,7 +351,7 @@ class Forces():
             x, y = direction[0], direction[1]
             if simulation.array[x][y] != force_id:
                 return False
-        return False
+        return True
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
