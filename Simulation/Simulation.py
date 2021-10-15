@@ -22,6 +22,7 @@ class Simulation():
         self.random_spread    = True
         self.random_iter_order= True
         self.single_change    = True
+        self.loaded_simulation= False
         self.spread_factor    = 1
         self.direction_choices= [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
@@ -214,12 +215,14 @@ class Simulation():
         numpy.save(f'{file}', self.array)
     
     def load_state(self):
-        self.new_simulation()
+        self.set_defaults()
         file = filedialog.askopenfilename(initialdir= ".\Save Files",
                                       title     = "Select a File",
                                       filetypes = (('numpy files', '*.npy'),('All files', '*.*')))
         if not file: return
         self.array = numpy.load(file)
+        self.loaded_simulation = True
+        self.seed = self.array.copy()
         self.draw()
 
     def two_steps_one_back(self):
@@ -285,8 +288,7 @@ class Simulation():
         if self.spin < 0: self.spread_factor = len(self.direction_options) - 1
         print(f'spin = {self.spin}')
 
-    def new_simulation(self):
-        ## bound to <Shift-N>
+    def set_defaults(self):
         self.array = numpy.zeros((100, 100), dtype=numpy.int8)
         self.auto_running = False
         self.faster_eating = False
@@ -302,8 +304,13 @@ class Simulation():
         self.changed_cells = {}
         self.spread_slider.set(1)
         print('SETTINGS RESET')
+
+    def new_simulation(self):
+        ## bound to <Shift-N>
+        self.loaded_simulation = False
         self.clear_canvas()
         self.clear_population_bar()
+        self.set_defaults()
         self.set_seed()
         self.draw()
         self.window.update()
