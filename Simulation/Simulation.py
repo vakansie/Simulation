@@ -365,6 +365,7 @@ class Spreader(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
+            if simulation.array[target_x][target_y] == 1: continue
             if simulation.array[target_x][target_y] in [0,3]:
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
@@ -386,6 +387,7 @@ class Eater(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
+            if simulation.array[target_x][target_y] == 2: continue
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
                 simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
@@ -410,6 +412,7 @@ class Cleaner(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
+            if simulation.array[target_x][target_y] == 3: continue
             if simulation.array[target_x][target_y] in [0,2]:
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
