@@ -1,4 +1,5 @@
 import tkinter
+from tkinter.constants import Y
 import numpy
 import random
 import time
@@ -22,12 +23,13 @@ class Simulation():
         self.recursive_eating = False
         self.random_spread    = True
         self.random_iter_order= True
+        self.single_change    = True
         self.spreading_factor = 1
         self.direction_choices= [-1, -1, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin             = random.randint(0, len(self.direction_options)-1)
         self.population       = [0,0,0,0]
-        self.changed_cells    = []
+        self.changed_cells    = {}
         self.population_bar   = self.create_population_bar()
         self.spread_slider    = self.create_slider()
         self.bind_keys()
@@ -68,6 +70,7 @@ class Simulation():
         view_menu.add_command(label='Toggle add reverse eating  f', command=lambda: self.toggle_faster_eating())
         view_menu.add_command(label='Toggle random spreading    x', command=lambda: self.toggle_random_spread())
         view_menu.add_command(label='Toggle random order        z', command=lambda: self.toggle_random_iter())
+        view_menu.add_command(label='Toggle only change once    z', command=lambda: self.toggle_only_change_once())
         view_menu.add_command(label='Reset                Shift-r', command=lambda: self.reset())    
         view_menu.add_command(label='New                  Shift-n', command=lambda: self.new_simulation())
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
@@ -101,6 +104,8 @@ class Simulation():
         self.window.bind("d", lambda x: self.toggle_direction_choice())
         self.window.bind("x", lambda x: self.toggle_random_spread())
         self.window.bind("z", lambda x: self.toggle_random_iter())
+        self.window.bind("c", lambda x: self.toggle_only_change_once())
+
         self.window.bind("=", lambda x: self.set_spreading_factor(1))
         self.window.bind("-", lambda x: self.set_spreading_factor(-1))
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
@@ -112,8 +117,9 @@ class Simulation():
     def set_seed(self):
         for i in range(100):
             x, y = random.choice(range(100)), random.choice(range(100))
-            self.array[x][y] =  random.choice([1,2,3]) 
-            self.changed_cells.append((x, y))
+            force = random.choice([1,2,3])
+            self.array[x][y] = force
+            self.changed_cells[(x, y)] = force
         self.seed = self.array.copy()
 
     def draw(self):
@@ -121,22 +127,33 @@ class Simulation():
         self.population = [0,0,0,0]
         for x in range(self.array.shape[0]):
             for y in range(self.array.shape[1]):
-                y_pos = y * self.block_size
-                x_pos = x * self.block_size
+                x_pos, y_pos = x * self.block_size, y * self.block_size
                 if self.array[x][y] == 1:
-                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "green")
-                    self.population[1] += 1
+                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=f'{(x, y)}')
                 elif self.array[x][y] == 2:
-                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "red")
-                    self.population[2] += 1
+                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=f'{(x, y)}')
                 elif self.array[x][y] == 3:
-                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill = "yellow")
-                    self.population[3] += 1
-                else: self.population[0] += 1
+                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=f'{(x, y)}')
         self.draw_population_bar()
 
-    def iterate(self):
+    def fast_draw(self):
+        for coords, force in self.changed_cells.items():
+            x, y = coords[0], coords[1]
+            x_pos, y_pos = x * self.block_size, y * self.block_size
+            tag = f'x{coords[0]}y{coords[1]}'
+            occupant = self.canvas.find_withtag(tag)
+            self.canvas.delete(occupant)
+            if force == 1:
+                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
+            elif force == 2:
+                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
+            elif force == 3:
+                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
+        self.draw_population_bar()
+        self.changed_cells = {}
 
+    def iterate(self):
+        #self.changed_cells = {} #comment out if fast_draw
         row_order = [x for x in range(self.array.shape[0])]
         column_order = [y for y in range(self.array.shape[1])]
         if self.random_iter_order:
@@ -144,13 +161,13 @@ class Simulation():
             random.shuffle(column_order)
         for x in row_order:
             for y in column_order:
-                if self.array[x][y] == 1 and (x, y) not in self.changed_cells:
+                condition = (((x, y) not in self.changed_cells) if self.single_change else True)
+                if self.array[x][y] == 1 and condition:
                     Spreader.iterate(x, y)
-                elif self.array[x][y] == 2 and (x, y) not in self.changed_cells:
+                elif self.array[x][y] == 2 and condition:
                     Eater.iterate(x, y)
-                elif self.array[x][y] == 3 and (x, y) not in self.changed_cells:
+                elif self.array[x][y] == 3 and condition:
                     Cleaner.iterate(x, y)
-        self.changed_cells = []
 
     def step(self):
         ## bound to <Right Arrow Key>
@@ -158,7 +175,7 @@ class Simulation():
         if len(self.last_states) > 50: 
             self.last_states.remove(self.last_states[0])
         self.iterate()
-        self.draw()
+        self.fast_draw()
 
     def back(self):
         ## bound to <Left Arrow Key>
@@ -230,6 +247,11 @@ class Simulation():
         self.random_iter_order = not self.random_iter_order
         print(f"random iter order = {'ON' if self.random_iter_order else 'OFF'}")
 
+    def toggle_only_change_once(self):
+        ## bound to <c>
+        self.single_change  = not self.single_change
+        print(f"only change once = {'ON' if self.single_change else 'OFF'}")
+
     def set_spreading_factor(self, sign):
         ## bound to <+><->
         self.spreading_factor += sign
@@ -256,12 +278,13 @@ class Simulation():
         self.recursive_eating = False
         self.random_spread = True
         self.random_iter_order = True
+        self.single_change = True
         self.direction_choices = [-1, -1, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin = random.randint(0, len(simulation.direction_options)-1)
         self.spreading_factor = 1
         self.last_states = []
-        self.changed_cells = []
+        self.changed_cells = {}
         print('SETTINGS RESET')
         self.clear_canvas()
         self.clear_population_bar()
@@ -280,8 +303,14 @@ class Simulation():
         self.draw()
         self.window.update()
 
+    def get_population(self):
+        for force in range(4):
+            count = len(self.array[numpy.where(self.array == force)])
+            self.population[force] = count
+
     def draw_population_bar(self):
         self.clear_population_bar()
+        self.get_population()
         max_population = self.array.shape[0] * self.array.shape[1]
         green_width  = self.population[1] / max_population * self.width
         red_width    = self.population[2] / max_population * self.width
@@ -309,14 +338,13 @@ class Spreader(Forces):
             target_y = min(array_y_pos + y_direction,99)
             if simulation.array[target_x][target_y] in [0,3]:
                 simulation.array[target_x][target_y] = 1
-                simulation.changed_cells.append((target_x, target_y))
+                simulation.changed_cells[(target_x, target_y)] = 1
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 2:
                     simulation.array[array_x_pos][array_y_pos] = 2
-                    simulation.changed_cells.append((array_x_pos, array_y_pos))
+                    simulation.changed_cells[(array_x_pos, array_y_pos)] = 2
             if simulation.recursive_eating and simulation.array[target_x][target_y] == 3:
                 Spreader.iterate(target_x, target_y)
-        list(dict.fromkeys(simulation.changed_cells))
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
@@ -328,17 +356,16 @@ class Eater(Forces):
             target_y = min(array_y_pos + y_direction,99)
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
-                simulation.changed_cells.append((array_x_pos, array_y_pos))
+                simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
             if simulation.array[target_x][target_y] in [0,1]:
                 simulation.array[target_x][target_y] = 2
-                simulation.changed_cells.append((target_x, target_y))
+                simulation.changed_cells[(target_x, target_y)] = 2
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 3:
                     simulation.array[array_x_pos][array_y_pos] = 3
-                    simulation.changed_cells.append((array_x_pos, array_y_pos))
+                    simulation.changed_cells[(array_x_pos, array_y_pos)] = 3
             if simulation.recursive_eating and simulation.array[target_x][target_y] == 1:
                 Eater.iterate(target_x, target_y)
-        list(dict.fromkeys(simulation.changed_cells))
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
@@ -350,14 +377,13 @@ class Cleaner(Forces):
             target_y = min(array_y_pos + y_direction,99)
             if simulation.array[target_x][target_y] in [0,2]:
                 simulation.array[target_x][target_y] = 3
-                simulation.changed_cells.append((target_x, target_y))
+                simulation.changed_cells[(target_x, target_y)] = 3
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 1:
                     simulation.array[array_x_pos][array_y_pos] = 1
-                    simulation.changed_cells.append((array_x_pos, array_y_pos))
+                    simulation.changed_cells[(array_x_pos, array_y_pos)] = 1
             if simulation.recursive_eating and simulation.array[target_x][target_y] == 2:
                 Cleaner.iterate(target_x, target_y)
-        list(dict.fromkeys(simulation.changed_cells))
 
 def main():
     global simulation
