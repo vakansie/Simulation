@@ -212,7 +212,6 @@ class Simulation():
         file = filedialog.asksaveasfilename(initialdir= ".\Save Files",title= "Save As",
                                       filetypes = (('numpy files', '*.npy'),('All files', '*.npy')))
         numpy.save(f'{file}', self.array)
-        file.flush
     
     def load_state(self):
         self.new_simulation()
@@ -321,7 +320,7 @@ class Simulation():
         self.window.update()
 
     def get_population(self):
-        for force in range(4):
+        for force in range(len(self.population)):
             count = len(self.array[numpy.where(self.array == force)])
             self.population[force] = count
 
