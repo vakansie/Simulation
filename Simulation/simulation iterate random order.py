@@ -2,6 +2,7 @@ import tkinter
 import numpy
 import random
 import time
+from tkinter import filedialog
 from itertools import permutations
 
 class Simulation():
@@ -21,7 +22,7 @@ class Simulation():
         self.random_spread    = True
         self.random_iter_order= True
         self.single_change    = True
-        self.spreading_factor = 1
+        self.spread_factor    = 1
         self.direction_choices= [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin             = random.randint(0, len(self.direction_options)-1)
@@ -62,22 +63,22 @@ class Simulation():
     def create_menu(self):
         menu_bar = tkinter.Menu(self.window, tearoff=0)
         view_menu = tkinter.Menu(menu_bar)
-        view_menu.add_command(label='Toggle recursive eating    r', command=lambda: self.toggle_recursive_eating())
-        view_menu.add_command(label='Toggle spread direction    d', command=lambda: self.toggle_direction_choice())
-        view_menu.add_command(label='Toggle add reverse eating  f', command=lambda: self.toggle_faster_eating())
-        view_menu.add_command(label='Toggle random spreading    x', command=lambda: self.toggle_random_spread())
-        view_menu.add_command(label='Toggle random order        z', command=lambda: self.toggle_random_iter())
-        view_menu.add_command(label='Toggle only change once    z', command=lambda: self.toggle_only_change_once())
-        view_menu.add_command(label='Reset                Shift-r', command=lambda: self.reset())    
-        view_menu.add_command(label='New                  Shift-n', command=lambda: self.new_simulation())
+        view_menu.add_command(label='Save                 Shift-S', command=lambda: self.save_state())
+        view_menu.add_command(label='Load                 Shift-L', command=lambda: self.load_state())
+        view_menu.add_command(label='Toggle recursive eating    R', command=lambda: self.toggle_recursive_eating())
+        view_menu.add_command(label='Toggle spread direction    D', command=lambda: self.toggle_direction_choice())
+        view_menu.add_command(label='Toggle add reverse eating  F', command=lambda: self.toggle_faster_eating())
+        view_menu.add_command(label='Toggle random spreading    X', command=lambda: self.toggle_random_spread())
+        view_menu.add_command(label='Toggle random order        Z', command=lambda: self.toggle_random_iter())
+        view_menu.add_command(label='Toggle only change once    C', command=lambda: self.toggle_only_change_once())
+        view_menu.add_command(label='Reset                Shift-R', command=lambda: self.reset())    
+        view_menu.add_command(label='New                  Shift-N', command=lambda: self.new_simulation())
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
-  #     self.recursive_check = tkinter.Checkbutton(self.window, text='recursive',variable=self.recursive_eating,
-  #      onvalue=True, offvalue=False, command=lambda: self.toggle_recursive_eating()).grid(row=1, column=7)
         self.window.config(menu=menu_bar)
 
     def create_slider(self):
         spread_slider = tkinter.Scale(self.window, from_=8, to=1, command=lambda x: self.get_spread_from_slider())
-        spread_slider.set(self.spreading_factor)
+        spread_slider.set(self.spread_factor)
         spread_slider.grid(row=0, column=7)
         return spread_slider
 
@@ -104,11 +105,12 @@ class Simulation():
         self.window.bind("x", lambda x: self.toggle_random_spread())
         self.window.bind("z", lambda x: self.toggle_random_iter())
         self.window.bind("c", lambda x: self.toggle_only_change_once())
-
-        self.window.bind("=", lambda x: self.set_spreading_factor(1))
-        self.window.bind("-", lambda x: self.set_spreading_factor(-1))
+        self.window.bind("=", lambda x: self.set_spread_factor(1))
+        self.window.bind("-", lambda x: self.set_spread_factor(-1))
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
         self.window.bind("<KeyPress-Down>", lambda x: self.set_spin(-1))
+        self.window.bind("<Control-s>", lambda x: self.save_state())
+        self.window.bind("<Control-l>", lambda x: self.load_state())
 
     def mainloop(self):
         self.window.mainloop()
@@ -206,6 +208,21 @@ class Simulation():
         self.draw()
         self.window.update()
 
+    def save_state(self):
+        file = filedialog.asksaveasfile(initialdir= ".\Save Files",title= "Save As",
+                                      filetypes = (('numpy files', '*.npy'),('All files', '*.*')))
+        name = file.name
+        numpy.save(f'{name}', self.array)
+    
+    def load_state(self):
+        self.new_simulation()
+        file = filedialog.askopenfilename(initialdir= ".\Save Files",
+                                      title     = "Select a File",
+                                      filetypes = (('numpy files', '*.npy'),('All files', '*.*')))
+        if not file: return
+        self.array = numpy.load(file)
+        self.draw()
+
     def two_steps_one_back(self):
         ## bound to <2>
         self.auto_running = not self.auto_running
@@ -251,22 +268,22 @@ class Simulation():
         self.single_change = not self.single_change
         print(f"only change once = {'ON' if self.single_change else 'OFF'}")
 
-    def set_spreading_factor(self, sign):
+    def set_spread_factor(self, sign):
         ## bound to <+><->
-        self.spreading_factor += sign
-        if self.spreading_factor == 9: self.spreading_factor = 1
-        if self.spreading_factor == 0: self.spreading_factor = 8
-        self.spread_slider.set(self.spreading_factor)
-        print(f'spreading_factor = {self.spreading_factor}')
+        self.spread_factor += sign
+        if self.spread_factor == 9: self.spread_factor = 1
+        if self.spread_factor == 0: self.spread_factor = 8
+        self.spread_slider.set(self.spread_factor)
+        print(f'spread_factor = {self.spread_factor}')
 
     def get_spread_from_slider(self):
-        self.spreading_factor = self.spread_slider.get()
+        self.spread_factor = self.spread_slider.get()
 
     def set_spin(self, sign):
         ## bound to <KeyPress-Up> <KeyPress-Down>
         simulation.spin += sign
         if self.spin == len(self.direction_options): self.spin = 0
-        if self.spin < 0: self.spreading_factor = len(self.direction_options) - 1
+        if self.spin < 0: self.spread_factor = len(self.direction_options) - 1
         print(f'spin = {self.spin}')
 
     def new_simulation(self):
@@ -278,10 +295,10 @@ class Simulation():
         self.random_spread = True
         self.random_iter_order = True
         self.single_change = True
-        self.direction_choices = [-1, -1, 1, 1]
+        self.direction_choices = [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin = random.randint(0, len(simulation.direction_options)-1)
-        self.spreading_factor = 1
+        self.spread_factor = 1
         self.last_states = []
         self.changed_cells = {}
         self.spread_slider.set(1)
@@ -326,7 +343,7 @@ class Forces():
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
         random_index = random.randint(0, len(simulation.direction_options))
-        for i in range(simulation.spreading_factor):
+        for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
             target_x = min(array_x_pos + x_direction,99)
@@ -344,7 +361,7 @@ class Spreader(Forces):
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
         random_index = random.randint(0, len(simulation.direction_options))
-        for i in range(simulation.spreading_factor):
+        for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
             target_x = min(array_x_pos + x_direction,99)
@@ -365,7 +382,7 @@ class Eater(Forces):
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
         random_index = random.randint(0, len(simulation.direction_options))
-        for i in range(simulation.spreading_factor):
+        for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
             target_x = min(array_x_pos + x_direction,99)
