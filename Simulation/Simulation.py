@@ -1,7 +1,7 @@
 import tkinter
 import numpy
 import random
-import time
+from time import sleep
 from tkinter import filedialog
 from itertools import permutations
 
@@ -191,7 +191,7 @@ class Simulation():
         self.auto_running = not self.auto_running
         while self.auto_running:
             self.step()
-            time.sleep(0.1)
+            sleep(0.1)
             self.window.update()
 
     def auto_back(self):
@@ -199,7 +199,7 @@ class Simulation():
         self.auto_running = not self.auto_running
         while self.auto_running:
             self.back()
-            time.sleep(0.1)
+            sleep(0.1)
             self.window.update()
             if len(self.last_states) == 0: self.auto_running = False
 
@@ -231,10 +231,10 @@ class Simulation():
         while self.auto_running:
             self.step()
             self.window.update()
-            time.sleep(0.1)
+            sleep(0.1)
             self.step()
             self.window.update()
-            time.sleep(0.1)
+            sleep(0.1)
             self.back()
 
     def toggle_faster_eating(self):
@@ -346,8 +346,16 @@ class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
         self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
+    def surrounded(force_id):
+        for direction in simulation.direction_options:
+            x, y = direction[0], direction[1]
+            if simulation.array[x][y] != force_id:
+                return False
+        return False
+
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
+        if Forces.surrounded(1): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -366,6 +374,7 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
+        if Forces.surrounded(2): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -387,6 +396,7 @@ class Eater(Forces):
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
+        if Forces.surrounded(3): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
