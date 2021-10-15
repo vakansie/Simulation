@@ -346,22 +346,25 @@ class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
         self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
-    def surrounded(force_id):
+    def surrounded(force_id, array_x_pos, array_y_pos):
         for direction in simulation.direction_options:
-            x, y = direction[0], direction[1]
-            if simulation.array[x][y] != force_id:
-                return False
+            x, y = direction
+            if 0 <= array_x_pos + x <= 99 and 0 <= array_y_pos + y <= 99:
+                if simulation.array[array_x_pos+x][array_y_pos+y] != force_id:
+                    return False
         return True
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(1): return
+        if Forces.surrounded(1, array_x_pos, array_y_pos): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
-            target_x = min(array_x_pos + x_direction,99)
-            target_y = min(array_y_pos + y_direction,99)
+            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+                target_x = array_x_pos + x_direction
+                target_y = array_y_pos + y_direction
+            else: continue
             if simulation.array[target_x][target_y] in [0,3]:
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
@@ -374,13 +377,15 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(2): return
+        if Forces.surrounded(2, array_x_pos, array_y_pos): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
-            target_x = min(array_x_pos + x_direction,99)
-            target_y = min(array_y_pos + y_direction,99)
+            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+                target_x = array_x_pos + x_direction
+                target_y = array_y_pos + y_direction
+            else: continue
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
                 simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
@@ -396,13 +401,15 @@ class Eater(Forces):
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(3): return
+        if Forces.surrounded(3, array_x_pos, array_y_pos): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
             except IndexError: break
-            target_x = min(array_x_pos + x_direction,99)
-            target_y = min(array_y_pos + y_direction,99)
+            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+                target_x = array_x_pos + x_direction
+                target_y = array_y_pos + y_direction
+            else: continue
             if simulation.array[target_x][target_y] in [0,2]:
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
