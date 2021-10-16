@@ -118,7 +118,7 @@ class Simulation():
 
     def set_seed(self):
         for i in range(100):
-            x, y = random.choice(range(100)), random.choice(range(100))
+            x, y = random.choice(range(self.array.shape[0])), random.choice(range(self.array.shape[1]))
             force = random.choice([1,2,3])
             self.array[x][y] = force
             self.changed_cells[(x, y)] = force
@@ -130,19 +130,21 @@ class Simulation():
         for x in range(self.array.shape[0]):
             for y in range(self.array.shape[1]):
                 x_pos, y_pos = x * self.block_size, y * self.block_size
+                tag = f'x{x}y{y}'
                 if self.array[x][y] == 1:
-                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=f'{(x, y)}')
+                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
                 elif self.array[x][y] == 2:
-                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=f'{(x, y)}')
+                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
                 elif self.array[x][y] == 3:
-                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=f'{(x, y)}')
+                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
         self.draw_population_bar()
 
     def fast_draw(self):
         for coords, force in self.changed_cells.items():
             x, y = coords[0], coords[1]
+            if self.last_states[-1][x][y] == force: continue # dont bother replacing things with themselves
             x_pos, y_pos = x * self.block_size, y * self.block_size
-            tag = f'x{coords[0]}y{coords[1]}'
+            tag = f'x{x}y{y}'
             occupant = self.canvas.find_withtag(tag)
             self.canvas.delete(occupant)
             if force == 1:
@@ -155,14 +157,13 @@ class Simulation():
         self.changed_cells = {}
 
     def iterate(self):
-        #self.changed_cells = {} #comment out if fast_draw
-        row_order = [x for x in range(self.array.shape[0])]
-        column_order = [y for y in range(self.array.shape[1])]
+        rows = [x for x in range(self.array.shape[0])]
+        columns = [y for y in range(self.array.shape[1])]
         if self.random_iter_order:
-            random.shuffle(row_order)
-            random.shuffle(column_order)
-        for x in row_order:
-            for y in column_order:
+            random.shuffle(rows)
+            random.shuffle(columns)
+        for x in rows:
+            for y in columns:
                 condition = (((x, y) not in self.changed_cells) if self.single_change else True)
                 if self.array[x][y] == 1 and condition:
                     Spreader.iterate(x, y)
@@ -346,7 +347,7 @@ class Forces():
     def __init__(self, x0, x1, y0, y1, **kwargs):
         self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
-    def surrounded(force_id, array_x_pos, array_y_pos):
+    def surrounded_by_same(array_x_pos, array_y_pos, force_id):
         for direction in simulation.direction_options:
             x, y = direction
             if 0 <= array_x_pos + x <= 99 and 0 <= array_y_pos + y <= 99:
@@ -356,7 +357,7 @@ class Forces():
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(1, array_x_pos, array_y_pos): return
+        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=1): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -378,7 +379,7 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(2, array_x_pos, array_y_pos): return
+        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=2): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -403,7 +404,7 @@ class Eater(Forces):
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded(3, array_x_pos, array_y_pos): return
+        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=3): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
