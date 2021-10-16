@@ -8,7 +8,7 @@ from itertools import permutations
 class Simulation():
 
     def __init__(self):
-        self.array            = numpy.zeros((100, 100), dtype=numpy.int8)
+        self.array            = self.create_array()
         self.height           = 500
         self.width            = 500
         self.window           = self.create_window()
@@ -45,6 +45,10 @@ class Simulation():
         canvas = tkinter.Canvas(self.window, bg="black", height=self.height, width=self.width)
         canvas.grid(row=0, columnspan=6)
         return canvas
+
+    def create_array(self):
+        array = numpy.zeros((100, 100), dtype=numpy.int8)
+        return array
 
     def clear_canvas(self):
         self.canvas.delete("all")
@@ -121,7 +125,7 @@ class Simulation():
             x, y = random.choice(range(self.array.shape[0])), random.choice(range(self.array.shape[1]))
             force = random.choice([1,2,3])
             self.array[x][y] = force
-            self.changed_cells[(x, y)] = force
+            #self.changed_cells[(x, y)] = force
         self.seed = self.array.copy()
 
     def draw(self):
@@ -164,6 +168,7 @@ class Simulation():
             random.shuffle(columns)
         for x in rows:
             for y in columns:
+                if self.array[x][y] == 0: continue
                 condition = (((x, y) not in self.changed_cells) if self.single_change else True)
                 if self.array[x][y] == 1 and condition:
                     Spreader.iterate(x, y)
@@ -172,11 +177,14 @@ class Simulation():
                 elif self.array[x][y] == 3 and condition:
                     Cleaner.iterate(x, y)
 
-    def step(self):
-        ## bound to <Right Arrow Key>
+    def record_state(self):
         self.last_states.append(self.array.copy())
         if len(self.last_states) > 50: 
             self.last_states.remove(self.last_states[0])
+
+    def step(self):
+        ## bound to <Right Arrow Key>
+        self.record_state()
         self.iterate()
         self.fast_draw()
 
@@ -207,6 +215,7 @@ class Simulation():
     def reset(self):
         ## bound to <Shift-R>
         self.array = self.seed.copy()
+        self.last_states = []
         self.draw()
         self.window.update()
 
@@ -290,7 +299,6 @@ class Simulation():
         print(f'spin = {self.spin}')
 
     def set_defaults(self):
-        self.array = numpy.zeros((100, 100), dtype=numpy.int8)
         self.auto_running = False
         self.faster_eating = False
         self.recursive_eating = False
@@ -308,13 +316,13 @@ class Simulation():
 
     def new_simulation(self):
         ## bound to <Shift-N>
+        self.array = self.create_array()
         self.loaded_simulation = False
         self.clear_canvas()
         self.clear_population_bar()
         self.set_defaults()
         self.set_seed()
         self.draw()
-        self.window.update()
 
     def nuke(self, mouse_click):
         ## bound to <Mouse Button 3>
@@ -361,7 +369,7 @@ class Spreader(Forces):
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
-            except IndexError: break
+            except IndexError: break #test
             if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
