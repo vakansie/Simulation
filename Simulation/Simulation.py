@@ -76,7 +76,8 @@ class Simulation():
         view_menu.add_command(label='Toggle random spreading    X', command=lambda: self.toggle_random_spread())
         view_menu.add_command(label='Toggle random order        Z', command=lambda: self.toggle_random_iter())
         view_menu.add_command(label='Toggle only change once    C', command=lambda: self.toggle_only_change_once())
-        view_menu.add_command(label='Reset                Shift-R', command=lambda: self.reset())    
+        view_menu.add_command(label='Default Settings     Shift-D', command=lambda: self.set_defaults())
+        view_menu.add_command(label='Reset                Shift-R', command=lambda: self.reset())
         view_menu.add_command(label='New                  Shift-N', command=lambda: self.new_simulation())
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
         self.window.config(menu=menu_bar)
@@ -112,6 +113,7 @@ class Simulation():
         self.window.bind("c", lambda x: self.toggle_only_change_once())
         self.window.bind("=", lambda x: self.set_spread_factor(1))
         self.window.bind("-", lambda x: self.set_spread_factor(-1))
+        self.window.bind("D", lambda x: self.set_defaults())
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
         self.window.bind("<KeyPress-Down>", lambda x: self.set_spin(-1))
         self.window.bind("<Control-s>", lambda x: self.save_state())
@@ -125,22 +127,38 @@ class Simulation():
             x, y = random.choice(range(self.array.shape[0])), random.choice(range(self.array.shape[1]))
             force = random.choice([1,2,3])
             self.array[x][y] = force
-            #self.changed_cells[(x, y)] = force
         self.seed = self.array.copy()
+
+    def draw_spreaders(self):
+        spreaders = numpy.where(self.array == 1)
+        for spreader in range(len(self.array[spreaders])):
+            x, y = spreaders[0][spreader], spreaders[1][spreader]
+            x_pos, y_pos = x * self.block_size, y * self.block_size
+            tag = f'x{x}y{y}'
+            Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
+
+    def draw_eaters(self):
+        spreaders = numpy.where(self.array == 2)
+        for spreader in range(len(self.array[spreaders])):
+            x, y = spreaders[0][spreader], spreaders[1][spreader]
+            x_pos, y_pos = x * self.block_size, y * self.block_size
+            tag = f'x{x}y{y}'
+            Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
+
+    def draw_cleaners(self):
+        spreaders = numpy.where(self.array == 3)
+        for spreader in range(len(self.array[spreaders])):
+            x, y = spreaders[0][spreader], spreaders[1][spreader]
+            x_pos, y_pos = x * self.block_size, y * self.block_size
+            tag = f'x{x}y{y}'
+            Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
 
     def draw(self):
         self.clear_canvas()
         self.population = [0,0,0,0]
-        for x in range(self.array.shape[0]):
-            for y in range(self.array.shape[1]):
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                if self.array[x][y] == 1:
-                    Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
-                elif self.array[x][y] == 2:
-                    Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
-                elif self.array[x][y] == 3:
-                    Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
+        self.draw_spreaders()
+        self.draw_eaters()
+        self.draw_cleaners()
         self.draw_population_bar()
 
     def fast_draw(self):
@@ -161,6 +179,7 @@ class Simulation():
         self.changed_cells = {}
 
     def iterate(self):
+        self.changed_cells = {}
         rows = [x for x in range(self.array.shape[0])]
         columns = [y for y in range(self.array.shape[1])]
         if self.random_iter_order:
@@ -168,13 +187,15 @@ class Simulation():
             random.shuffle(columns)
         for x in rows:
             for y in columns:
-                if self.array[x][y] == 0: continue
+                force = self.array[x][y]
+                if force == 0: continue
+                if Forces.surrounded_by_same(x, y, force_id=force): continue
                 condition = (((x, y) not in self.changed_cells) if self.single_change else True)
-                if self.array[x][y] == 1 and condition:
+                if force == 1 and condition:
                     Spreader.iterate(x, y)
-                elif self.array[x][y] == 2 and condition:
+                elif force == 2 and condition:
                     Eater.iterate(x, y)
-                elif self.array[x][y] == 3 and condition:
+                elif force == 3 and condition:
                     Cleaner.iterate(x, y)
 
     def record_state(self):
@@ -186,7 +207,7 @@ class Simulation():
         ## bound to <Right Arrow Key>
         self.record_state()
         self.iterate()
-        self.fast_draw()
+        self.draw()
 
     def back(self):
         ## bound to <Left Arrow Key>
@@ -246,6 +267,7 @@ class Simulation():
             self.window.update()
             sleep(0.1)
             self.back()
+            sleep(0.1)
 
     def toggle_faster_eating(self):
         ## bound to <f>
@@ -299,7 +321,7 @@ class Simulation():
         print(f'spin = {self.spin}')
 
     def set_defaults(self):
-        self.auto_running = False
+        ## bound to <D>
         self.faster_eating = False
         self.recursive_eating = False
         self.random_spread = True
@@ -309,15 +331,16 @@ class Simulation():
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin = random.randint(0, len(simulation.direction_options)-1)
         self.spread_factor = 1
-        self.last_states = []
         self.changed_cells = {}
-        self.spread_slider.set(1)
+        self.spread_slider.set(self.spread_factor)
         print('SETTINGS RESET')
 
     def new_simulation(self):
         ## bound to <Shift-N>
         self.array = self.create_array()
+        self.auto_running = False
         self.loaded_simulation = False
+        self.last_states = []
         self.clear_canvas()
         self.clear_population_bar()
         self.set_defaults()
@@ -365,7 +388,6 @@ class Forces():
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=1): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -387,7 +409,6 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=2): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
@@ -412,7 +433,6 @@ class Eater(Forces):
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos):
-        if Forces.surrounded_by_same(array_x_pos, array_y_pos, force_id=3): return
         random_index = random.randint(0, len(simulation.direction_options))
         for i in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - i if simulation.random_spread else simulation.spin - i)]
