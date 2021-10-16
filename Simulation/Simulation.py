@@ -16,6 +16,7 @@ class Simulation():
         self.block_size       = 5
         self.last_states      = []
         self.seed             = []
+        self.seed_density     = 100
         self.auto_running     = False
         self.faster_eating    = False
         self.recursive_eating = False
@@ -79,6 +80,7 @@ class Simulation():
         view_menu.add_command(label='Default Settings     Shift-D', command=lambda: self.set_defaults())
         view_menu.add_command(label='Reset                Shift-R', command=lambda: self.reset())
         view_menu.add_command(label='New                  Shift-N', command=lambda: self.new_simulation())
+        view_menu.add_command(label='Set Seed Density'            , command=lambda: self.set_seed_density())
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
         self.window.config(menu=menu_bar)
 
@@ -123,42 +125,61 @@ class Simulation():
         self.window.mainloop()
 
     def set_seed(self):
-        for i in range(100):
+        for i in range(self.seed_density):
             x, y = random.choice(range(self.array.shape[0])), random.choice(range(self.array.shape[1]))
             force = random.choice([1,2,3])
             self.array[x][y] = force
         self.seed = self.array.copy()
 
-    def draw_spreaders(self):
-        spreaders = numpy.where(self.array == 1)
-        for spreader in range(len(self.array[spreaders])):
-            x, y = spreaders[0][spreader], spreaders[1][spreader]
-            x_pos, y_pos = x * self.block_size, y * self.block_size
-            tag = f'x{x}y{y}'
-            Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
+    def set_seed_density(self):
 
-    def draw_eaters(self):
-        spreaders = numpy.where(self.array == 2)
-        for spreader in range(len(self.array[spreaders])):
-            x, y = spreaders[0][spreader], spreaders[1][spreader]
-            x_pos, y_pos = x * self.block_size, y * self.block_size
-            tag = f'x{x}y{y}'
-            Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
+        def get_density(entry):
+            try: seed_density =  min(abs(int(entry.get())), 10000)
+            except ValueError: pass
 
-    def draw_cleaners(self):
-        spreaders = numpy.where(self.array == 3)
-        for spreader in range(len(self.array[spreaders])):
-            x, y = spreaders[0][spreader], spreaders[1][spreader]
-            x_pos, y_pos = x * self.block_size, y * self.block_size
-            tag = f'x{x}y{y}'
-            Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
+            self.seed_density = seed_density
+            window.destroy()
+
+        window = tkinter.Toplevel()
+        window.bind('<Return>', lambda x: get_density(entry))
+        label = tkinter.Label(window, text='Enter Seed Density (0-10000)').pack()
+        entry = tkinter.Entry(window)
+        entry.focus_set()
+        entry.pack()
+        button = tkinter.Button(window, text='Set Density', command=lambda: get_density(entry)).pack()
+
 
     def draw(self):
+
+        def draw_spreaders():
+            spreaders = numpy.where(self.array == 1)
+            for spreader in range(len(self.array[spreaders])):
+                x, y = spreaders[0][spreader], spreaders[1][spreader]
+                x_pos, y_pos = x * self.block_size, y * self.block_size
+                tag = f'x{x}y{y}'
+                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
+
+        def draw_eaters():
+            spreaders = numpy.where(self.array == 2)
+            for spreader in range(len(self.array[spreaders])):
+                x, y = spreaders[0][spreader], spreaders[1][spreader]
+                x_pos, y_pos = x * self.block_size, y * self.block_size
+                tag = f'x{x}y{y}'
+                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
+
+        def draw_cleaners():
+            spreaders = numpy.where(self.array == 3)
+            for spreader in range(len(self.array[spreaders])):
+                x, y = spreaders[0][spreader], spreaders[1][spreader]
+                x_pos, y_pos = x * self.block_size, y * self.block_size
+                tag = f'x{x}y{y}'
+                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
+
         self.clear_canvas()
         self.population = [0,0,0,0]
-        self.draw_spreaders()
-        self.draw_eaters()
-        self.draw_cleaners()
+        draw_spreaders()
+        draw_eaters()
+        draw_cleaners()
         self.draw_population_bar()
 
     def fast_draw(self):
