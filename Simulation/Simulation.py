@@ -4,6 +4,7 @@ import random
 from time import sleep, time
 from tkinter import filedialog
 from itertools import permutations
+from threading import Thread
 
 class Simulation():
 
@@ -32,7 +33,8 @@ class Simulation():
         self.population       = [0,0,0,0]
         self.changed_cells    = {}
         self.population_bar   = self.create_population_bar()
-        self.spread_slider    = self.create_slider()
+        self.spread_slider    = self.create_spread_slider()
+        self.recursion_slider = self.create_recursion_slider()
         self.bind_keys()
         self.create_buttons()
         self.create_menu()
@@ -45,7 +47,7 @@ class Simulation():
 
     def create_canvas(self):
         canvas = tkinter.Canvas(self.window, bg="black", height=self.height, width=self.width)
-        canvas.grid(row=0, columnspan=6)
+        canvas.grid(rowspan=2, columnspan=6)
         return canvas
 
     def create_array(self):
@@ -57,15 +59,15 @@ class Simulation():
 
     def create_buttons(self):
         tkinter.Button(self.window, text='Auto>', borderwidth=1, font=('Verdana','18'),
-                    command= lambda: self.auto_run()).grid(row=1, column=1)
+                    command= lambda: self.auto_run()).grid(row=2, column=1)
         tkinter.Button(self.window, text='<Auto', borderwidth=1, font=('Verdana','18'),
-                    command= lambda: self.auto_back()).grid(row=1, column=0)
+                    command= lambda: self.auto_back()).grid(row=2, column=0)
         tkinter.Button(self.window, text='Step>', borderwidth=1, font=('Verdana','18'),
-                    command= lambda: self.step()).grid(row=1, column=3)
+                    command= lambda: self.step()).grid(row=2, column=3)
         tkinter.Button(self.window, text='New', borderwidth=1, font=('Verdana','18'),
-                    command= lambda: self.new_simulation()).grid(row=1, column=4)
+                    command= lambda: self.new_simulation()).grid(row=2, column=4)
         tkinter.Button(self.window, text='<Step', borderwidth=1, font=('Verdana','18'),
-                    command= lambda: self.back()).grid(row=1, column=2)
+                    command= lambda: self.back()).grid(row=2, column=2)
     
     def create_menu(self):
         menu_bar = tkinter.Menu(self.window, tearoff=0)
@@ -85,15 +87,21 @@ class Simulation():
         menu_bar.add_cascade(label="Simulation options", menu=view_menu)
         self.window.config(menu=menu_bar)
 
-    def create_slider(self):
+    def create_spread_slider(self):
         spread_slider = tkinter.Scale(self.window, from_=8, to=1, command=lambda x: self.get_spread_from_slider())
         spread_slider.set(self.spread_factor)
         spread_slider.grid(row=0, column=7)
         return spread_slider
 
+    def create_recursion_slider(self):
+        recursion_slider = tkinter.Scale(self.window, from_=8, to=1, command=lambda x: self.get_recursion_from_slider())
+        recursion_slider.set(self.recursion_factor)
+        recursion_slider.grid(row=1, column=7)
+        return recursion_slider
+
     def create_population_bar(self):
         canvas = tkinter.Canvas(self.window, bg="black", height=20, width=self.width)
-        canvas.grid(row=2, columnspan=6)
+        canvas.grid(row=3, columnspan=6)
         return canvas
 
     def clear_population_bar(self):
@@ -116,6 +124,8 @@ class Simulation():
         self.window.bind("c", lambda x: self.toggle_only_change_once())
         self.window.bind("=", lambda x: self.set_spread_factor(1))
         self.window.bind("-", lambda x: self.set_spread_factor(-1))
+        self.window.bind(".", lambda x: self.set_recursion_factor(1))
+        self.window.bind(",", lambda x: self.set_recursion_factor(-1))
         self.window.bind("D", lambda x: self.set_defaults())
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
         self.window.bind("<KeyPress-Down>", lambda x: self.set_spin(-1))
@@ -156,24 +166,21 @@ class Simulation():
             for spreader in range(len(self.array[spreaders])):
                 x, y = spreaders[0][spreader], spreaders[1][spreader]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
+                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "green")
 
         def draw_eaters():
             eaters = numpy.where(self.array == 2)
             for eater in range(len(self.array[eaters])):
                 x, y = eaters[0][eater], eaters[1][eater]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
+                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "red")
 
         def draw_cleaners():
             cleaners = numpy.where(self.array == 3)
             for cleaner in range(len(self.array[cleaners])):
                 x, y = cleaners[0][cleaner], cleaners[1][cleaner]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
+                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "yellow")
 
         self.clear_canvas()
         draw_spreaders()
@@ -236,16 +243,15 @@ class Simulation():
         for x in rows:
             for y in columns:
                 force = self.array[x][y]
-                if force == 0: continue
-                if Forces.surrounded_by_same(x, y, force_id=force): continue
-                recursion_factor = self.recursion_factor
+                #if force == 0: continue
+                #if Forces.surrounded_by_same(x, y, force_id=force): continue
                 condition = (((x, y) not in self.changed_cells) if self.single_change else True)
                 if force == 1 and condition:
-                    Spreader.iterate(x, y, recursion_factor)
+                    Spreader.iterate(x, y, self.recursion_factor)
                 elif force == 2 and condition:
-                    Eater.iterate(x, y, recursion_factor)
+                    Eater.iterate(x, y, self.recursion_factor)
                 elif force == 3 and condition:
-                    Cleaner.iterate(x, y, recursion_factor)
+                    Cleaner.iterate(x, y, self.recursion_factor)
 
     def record_state(self):
         self.last_states.append(self.array.copy())
@@ -254,12 +260,12 @@ class Simulation():
 
     def step(self):
         ## bound to <Right Arrow Key>
-        #t0 = time()
+        t0 = time()
         self.record_state()
         self.iterate()
         self.draw()
-        #t1 = time()
-        #print(t1-t0)
+        t1 = time()
+        print(t1-t0)
 
     def back(self):
         ## bound to <Left Arrow Key>
@@ -365,6 +371,17 @@ class Simulation():
     def get_spread_from_slider(self):
         self.spread_factor = self.spread_slider.get()
 
+    def set_recursion_factor(self, sign):
+        ## bound to <+><->
+        self.recursion_factor += sign
+        if self.recursion_factor == 9: self.recursion_factor = 1
+        if self.recursion_factor == 0: self.recursion_factor = 8
+        self.recursion_slider.set(self.recursion_factor)
+        print(f'recursion_factor = {self.recursion_factor}')
+
+    def get_recursion_from_slider(self):
+        self.recursion_factor = self.recursion_slider.get()
+
     def set_spin(self, sign):
         ## bound to <KeyPress-Up> <KeyPress-Down>
         simulation.spin += sign
@@ -386,6 +403,7 @@ class Simulation():
         self.spread_factor = 1
         self.changed_cells = {}
         self.spread_slider.set(self.spread_factor)
+        self.recursion_slider.set(self.recursion_factor)
         print('SETTINGS RESET')
 
     def new_simulation(self):
@@ -428,24 +446,24 @@ class Simulation():
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
 
 class Forces():
-    def __init__(self, x0, x1, y0, y1, **kwargs):
-        self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
+    def __init__(self, x0, x1, y0, y1, fill):
+        self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, fill=fill)
 
     def surrounded_by_same(array_x_pos, array_y_pos, force_id):
         for direction in simulation.direction_options:
             x, y = direction
-            if 0 <= array_x_pos + x <= 99 and 0 <= array_y_pos + y <= 99:
+            if -1 < array_x_pos + x < 100 and -1 < array_y_pos + y < 100:
                 if simulation.array[array_x_pos+x][array_y_pos+y] != force_id:
                     return False
         return True
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options))
+        random_index = random.randint(0, len(simulation.direction_options)-1)
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: break #test
-            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+            except IndexError: return
+            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -457,18 +475,22 @@ class Spreader(Forces):
                 if simulation.array[target_x][target_y] == 2:
                     simulation.array[array_x_pos][array_y_pos] = 2
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 2
-            recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-            recursion_factor -= 1
-            if simulation.recursive_eating and recursion_condition and simulation.array[target_x][target_y] == 1:
-                Spreader.iterate(target_x, target_y, recursion_factor)
+            if simulation.recursive_eating:
+                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
+                recursion_factor -= 1
+                if recursion_condition and simulation.array[target_x][target_y] == 1:
+                    try: Spreader.iterate(target_x, target_y, recursion_factor)
+                    except RecursionError:
+                        recursion_factor -= 1
+                        Spreader.iterate(target_x, target_y, recursion_factor)
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options))
+        random_index = random.randint(0, len(simulation.direction_options)-1)
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: break
-            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+            except IndexError: return
+            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -483,19 +505,22 @@ class Eater(Forces):
                 if simulation.array[target_x][target_y] == 3:
                     simulation.array[array_x_pos][array_y_pos] = 3
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 3
-            recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-            recursion_factor -= 1
-            if simulation.recursive_eating and recursion_condition and simulation.array[target_x][target_y] == 2:
-                Eater.iterate(target_x, target_y, recursion_factor)
+            if simulation.recursive_eating:
+                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
+                recursion_factor -= 1
+                if recursion_condition and simulation.array[target_x][target_y] == 2:
+                    try: Eater.iterate(target_x, target_y, recursion_factor)
+                    except RecursionError:
+                        recursion_factor -= 1
+                        Eater.iterate(target_x, target_y, recursion_factor)
             
-
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options))
+        random_index = random.randint(0, len(simulation.direction_options)-1)
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: break
-            if 0 <= array_x_pos + x_direction <= 99 and 0 <= array_y_pos + y_direction <= 99:
+            except IndexError: return
+            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -507,10 +532,14 @@ class Cleaner(Forces):
                 if simulation.array[target_x][target_y] == 1:
                     simulation.array[array_x_pos][array_y_pos] = 1
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 1
-            recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-            recursion_factor -= 1
-            if simulation.recursive_eating and recursion_condition and simulation.array[target_x][target_y] == 3:
-                Cleaner.iterate(target_x, target_y, recursion_factor)
+            if simulation.recursive_eating:
+                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
+                recursion_factor -= 1
+                if recursion_condition and simulation.array[target_x][target_y] == 3:
+                    try: Cleaner.iterate(target_x, target_y, recursion_factor)
+                    except RecursionError:
+                        recursion_factor -= 1
+                        Cleaner.iterate(target_x, target_y, recursion_factor)
 
 def main():
     global simulation
