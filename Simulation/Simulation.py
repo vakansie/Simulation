@@ -260,12 +260,12 @@ class Simulation():
 
     def step(self):
         ## bound to <Right Arrow Key>
-        t0 = time()
+        # t0 = time()
         self.record_state()
         self.iterate()
         self.draw()
-        t1 = time()
-        print(t1-t0)
+        # t1 = time()
+        # print(t1-t0)
 
     def back(self):
         ## bound to <Left Arrow Key>
