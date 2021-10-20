@@ -4,7 +4,6 @@ import random
 from time import sleep, time
 from tkinter import filedialog
 from itertools import permutations
-from threading import Thread
 
 class Simulation():
 
@@ -166,21 +165,21 @@ class Simulation():
             for spreader in range(len(self.array[spreaders])):
                 x, y = spreaders[0][spreader], spreaders[1][spreader]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "green")
+                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="green")
 
         def draw_eaters():
             eaters = numpy.where(self.array == 2)
             for eater in range(len(self.array[eaters])):
                 x, y = eaters[0][eater], eaters[1][eater]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "red")
+                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="red")
 
         def draw_cleaners():
             cleaners = numpy.where(self.array == 3)
             for cleaner in range(len(self.array[cleaners])):
                 x, y = cleaners[0][cleaner], cleaners[1][cleaner]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
-                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, "yellow")
+                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="yellow")
 
         self.clear_canvas()
         draw_spreaders()
@@ -260,12 +259,12 @@ class Simulation():
 
     def step(self):
         ## bound to <Right Arrow Key>
-        # t0 = time()
+        t0 = time()
         self.record_state()
         self.iterate()
         self.draw()
-        # t1 = time()
-        # print(t1-t0)
+        t1 = time()
+        print(t1-t0)
 
     def back(self):
         ## bound to <Left Arrow Key>
@@ -446,8 +445,8 @@ class Simulation():
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
 
 class Forces():
-    def __init__(self, x0, x1, y0, y1, fill):
-        self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, fill=fill)
+    def __init__(self, x0, x1, y0, y1, **kwargs):
+        self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
     def surrounded_by_same(array_x_pos, array_y_pos, force_id):
         for direction in simulation.direction_options:
@@ -467,22 +466,20 @@ class Spreader(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
-            if simulation.array[target_x][target_y] == 1: continue
-            if simulation.array[target_x][target_y] in [0,3]:
+            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 3:
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
+                if simulation.recursive_eating:
+                    if simulation.recursion_factor > 0 and loop < 1:
+                        recursion_factor -= 1
+                        try: Spreader.iterate(target_x, target_y, recursion_factor)
+                        except RecursionError:
+                            recursion_factor -= 1
+                            Spreader.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 2:
                     simulation.array[array_x_pos][array_y_pos] = 2
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 2
-            if simulation.recursive_eating:
-                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-                recursion_factor -= 1
-                if recursion_condition and simulation.array[target_x][target_y] == 1:
-                    try: Spreader.iterate(target_x, target_y, recursion_factor)
-                    except RecursionError:
-                        recursion_factor -= 1
-                        Spreader.iterate(target_x, target_y, recursion_factor)
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
@@ -494,25 +491,23 @@ class Eater(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
-            if simulation.array[target_x][target_y] == 2: continue
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
                 simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
-            if simulation.array[target_x][target_y] in [0,1]:
+            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 1:
                 simulation.array[target_x][target_y] = 2
                 simulation.changed_cells[(target_x, target_y)] = 2
+                if simulation.recursive_eating:
+                    if simulation.recursion_factor > 0 and loop < 1:
+                        recursion_factor -= 1
+                        try: Eater.iterate(target_x, target_y, recursion_factor)
+                        except RecursionError:
+                            recursion_factor -= 1
+                            Eater.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 3:
                     simulation.array[array_x_pos][array_y_pos] = 3
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 3
-            if simulation.recursive_eating:
-                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-                recursion_factor -= 1
-                if recursion_condition and simulation.array[target_x][target_y] == 2:
-                    try: Eater.iterate(target_x, target_y, recursion_factor)
-                    except RecursionError:
-                        recursion_factor -= 1
-                        Eater.iterate(target_x, target_y, recursion_factor)
             
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
@@ -524,22 +519,20 @@ class Cleaner(Forces):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
-            if simulation.array[target_x][target_y] == 3: continue
-            if simulation.array[target_x][target_y] in [0,2]:
+            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 2:
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
+                if simulation.recursive_eating:
+                    if simulation.recursion_factor > 0 and loop < 1:
+                        recursion_factor -= 1
+                        try: Cleaner.iterate(target_x, target_y, recursion_factor)
+                        except RecursionError:
+                            recursion_factor -= 1
+                            Cleaner.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
                 if simulation.array[target_x][target_y] == 1:
                     simulation.array[array_x_pos][array_y_pos] = 1
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 1
-            if simulation.recursive_eating:
-                recursion_condition = True if simulation.recursion_factor > 0 and loop < 1 else False
-                recursion_factor -= 1
-                if recursion_condition and simulation.array[target_x][target_y] == 3:
-                    try: Cleaner.iterate(target_x, target_y, recursion_factor)
-                    except RecursionError:
-                        recursion_factor -= 1
-                        Cleaner.iterate(target_x, target_y, recursion_factor)
 
 def main():
     global simulation
