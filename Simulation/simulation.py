@@ -4,6 +4,7 @@ import random
 from time import sleep, time
 from tkinter import filedialog
 from itertools import permutations
+from functools import lru_cache
 
 class Simulation():
 
@@ -163,6 +164,7 @@ class Simulation():
         def draw_spreaders():
             spreaders = numpy.where(self.array == 1)
             for spreader in range(len(self.array[spreaders])):
+                x_pos, y_pos = spreaders[0][spreader], spreaders[1][spreader]
                 x, y = spreaders[0][spreader], spreaders[1][spreader]
                 x_pos, y_pos = x * self.block_size, y * self.block_size
                 Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="green")
@@ -190,7 +192,6 @@ class Simulation():
     def fast_draw(self):
 
         def draw_spreaders():
-            
             positions = [coords for coords, force in self.changed_cells.items() if force == 1]
             for coords in positions:
                 x, y = coords
@@ -224,7 +225,6 @@ class Simulation():
                     self.canvas.itemconfig(occupant, fill='yellow')
                 else: Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
 
-        numpy.where(self.array == 1)
         draw_spreaders()
         draw_eaters()
         draw_cleaners()
@@ -240,7 +240,7 @@ class Simulation():
             random.shuffle(columns)
         for x in rows:
             for y in columns:
-                force = self.array[x][y]
+                force = self.array[x, y]
                 #if force == 0: continue
                 #if Forces.surrounded_by_same(x, y, force_id=force): continue
                 condition = (((x, y) not in self.changed_cells) if self.single_change else True)
@@ -276,8 +276,8 @@ class Simulation():
             t0 = time()
             self.step()
             t1 = time()
-            sleep(0 if t1-t0 > 0.1 else 0.1)
-            print(t1-t0)
+            sleep(0 if t1-t0 > 0.1 else 0.1-(t1-t0))
+            #print(t1-t0)
             self.window.update()
 
     def auto_back(self):
@@ -370,7 +370,7 @@ class Simulation():
         self.spread_factor = self.spread_slider.get()
 
     def set_recursion_factor(self, sign):
-        ## bound to <+><->
+        ## bound to <>
         self.recursion_factor += sign
         if self.recursion_factor == 9: self.recursion_factor = 1
         if self.recursion_factor == 0: self.recursion_factor = 8
@@ -455,13 +455,17 @@ class Forces():
                     return False
         return True
 
+    @lru_cache(maxsize=10000)
+    def is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
+        return 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100
+
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         random_index = random.randint(0, len(simulation.direction_options)-1)
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
             except IndexError: return
-            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
+            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -470,7 +474,7 @@ class Spreader(Forces):
                 simulation.changed_cells[(target_x, target_y)] = 1
                 if simulation.recursive_eating:
                     if simulation.recursion_factor > 0 and loop < 1:
-                        if random.randrange(recursion_factor) > 0:
+                        if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Spreader.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
@@ -484,7 +488,7 @@ class Eater(Forces):
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
             except IndexError: return
-            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
+            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -496,7 +500,7 @@ class Eater(Forces):
                 simulation.changed_cells[(target_x, target_y)] = 2
                 if simulation.recursive_eating:
                     if simulation.recursion_factor > 0 and loop < 1:
-                        if random.randrange(recursion_factor) > 0:
+                        if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Eater.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
@@ -510,7 +514,7 @@ class Cleaner(Forces):
         for loop in range(simulation.spread_factor):
             try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
             except IndexError: return
-            if 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100:
+            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
@@ -519,7 +523,7 @@ class Cleaner(Forces):
                 simulation.changed_cells[(target_x, target_y)] = 3
                 if simulation.recursive_eating:
                     if simulation.recursion_factor > 0 and loop < 1:
-                        if random.randrange(recursion_factor) > 0:
+                        if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Cleaner.iterate(target_x, target_y, recursion_factor)
             if simulation.faster_eating:
