@@ -25,6 +25,7 @@ class Simulation():
         self.random_iter_order= True
         self.single_change    = True
         self.loaded_simulation= False
+        self.only_draw_changes= False
         self.recursion_factor = 1
         self.spread_factor    = 1
         self.direction_choices= [-1, -1, 0, 1, 1]
@@ -127,6 +128,7 @@ class Simulation():
         self.window.bind(".", lambda x: self.set_recursion_factor(1))
         self.window.bind(",", lambda x: self.set_recursion_factor(-1))
         self.window.bind("D", lambda x: self.set_defaults())
+        self.window.bind("v", lambda x: self.draw_changes_only())
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
         self.window.bind("<KeyPress-Down>", lambda x: self.set_spin(-1))
         self.window.bind("<Control-s>", lambda x: self.save_state())
@@ -161,27 +163,34 @@ class Simulation():
 
     def draw(self):
 
+        def convert_to_canvas(x, y):
+            x_pos, y_pos = x * self.block_size, y * self.block_size
+            return x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size
+
         def draw_spreaders():
             spreaders = numpy.where(self.array == 1)
             for spreader in range(len(self.array[spreaders])):
-                x_pos, y_pos = spreaders[0][spreader], spreaders[1][spreader]
                 x, y = spreaders[0][spreader], spreaders[1][spreader]
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="green")
+                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
+                x0, y0, x1, y1 = convert_to_canvas(x, y)
+                Spreader(x0, y0, x1, y1, fill="green")
 
         def draw_eaters():
             eaters = numpy.where(self.array == 2)
             for eater in range(len(self.array[eaters])):
                 x, y = eaters[0][eater], eaters[1][eater]
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="red")
+                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
+                x0, y0, x1, y1 = convert_to_canvas(x, y)
+                Eater(x0, y0, x1, y1, fill="red")
 
         def draw_cleaners():
             cleaners = numpy.where(self.array == 3)
             for cleaner in range(len(self.array[cleaners])):
                 x, y = cleaners[0][cleaner], cleaners[1][cleaner]
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill="yellow")
+                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
+                x0, y0, x1, y1 = convert_to_canvas(x, y)
+                Cleaner(x0, y0, x1, y1, fill="yellow")
+
 
         self.clear_canvas()
         draw_spreaders()
@@ -276,6 +285,7 @@ class Simulation():
             t0 = time()
             self.step()
             t1 = time()
+            print(t1-t0)
             sleep(0 if t1-t0 > 0.18 else 0.18-(t1-t0))
             self.window.update()
 
@@ -292,7 +302,10 @@ class Simulation():
         ## bound to <Shift-R>
         self.array = self.seed.copy()
         self.last_states = []
+        setting = True if self.only_draw_changes else False
+        self.only_draw_changes = False
         self.draw()
+        self.only_draw_changes = setting
         self.window.update()
 
     def save_state(self):
@@ -323,6 +336,7 @@ class Simulation():
             sleep(0.1)
             self.back()
             sleep(0.1)
+            self.window.update()
 
     def toggle_faster_eating(self):
         ## bound to <f>
@@ -351,6 +365,11 @@ class Simulation():
         ## bound to <z>
         self.random_iter_order = not self.random_iter_order
         print(f"random iter order = {'ON' if self.random_iter_order else 'OFF'}")
+
+    def draw_changes_only(self):
+        ## bound to <v>
+        self.only_draw_changes = not self.only_draw_changes
+        print(f"ronly draw changes = {'ON' if self.only_draw_changes else 'OFF'}")
 
     def toggle_only_change_once(self):
         ## bound to <c>
@@ -393,6 +412,7 @@ class Simulation():
         self.random_spread = True
         self.random_iter_order = True
         self.single_change = True
+        self.only_draw_changes = False
         self.direction_choices = [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin = random.randint(0, len(simulation.direction_options)-1)
