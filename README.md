@@ -21,10 +21,10 @@ by default:
 
 other hotkeys:
 
-play/pause - space
-back/pause - b
-step - left right arrow keys
-reset simulation - shift-r (keeps settings)
-reset default settings - shift-d
-save - ctrl-s
-load - ctrl-l
+- play/pause - space
+- back/pause - b
+- step - left right arrow keys
+- reset simulation - shift-r (keeps settings)
+- reset default settings - shift-d
+- save - ctrl-s
+- load - ctrl-l
