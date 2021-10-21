@@ -17,6 +17,7 @@ by default:
 - a succesfull spread wont recursicely try to spread again  - toggle recursive eating  - hotkey 'r' --> hotkey '<>' - bottom slider 
 - a cell can only change once per iteration                 - toggle only change once  - hotkey 'c'
 - the seed density is 100 random squares in random places   - set seed density         - menu option
+- all cells are drawn                                       - toggle only draw changed  -hotkey 'v'
 
 other hotkeys:
 
