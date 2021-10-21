@@ -81,6 +81,7 @@ class Simulation():
         view_menu.add_command(label='Toggle random spreading    X', command=lambda: self.toggle_random_spread())
         view_menu.add_command(label='Toggle random order        Z', command=lambda: self.toggle_random_iter())
         view_menu.add_command(label='Toggle only change once    C', command=lambda: self.toggle_only_change_once())
+        view_menu.add_command(label='Toggle only draw changed   V', command=lambda: self.toggle_draw_changes_only())
         view_menu.add_command(label='Default Settings     Shift-D', command=lambda: self.set_defaults())
         view_menu.add_command(label='Reset                Shift-R', command=lambda: self.reset())
         view_menu.add_command(label='New                  Shift-N', command=lambda: self.new_simulation())
@@ -128,7 +129,7 @@ class Simulation():
         self.window.bind(".", lambda x: self.set_recursion_factor(1))
         self.window.bind(",", lambda x: self.set_recursion_factor(-1))
         self.window.bind("D", lambda x: self.set_defaults())
-        self.window.bind("v", lambda x: self.draw_changes_only())
+        self.window.bind("v", lambda x: self.toggle_draw_changes_only())
         self.window.bind("<KeyPress-Up>", lambda x: self.set_spin(1))
         self.window.bind("<KeyPress-Down>", lambda x: self.set_spin(-1))
         self.window.bind("<Control-s>", lambda x: self.save_state())
@@ -285,7 +286,6 @@ class Simulation():
             t0 = time()
             self.step()
             t1 = time()
-            print(t1-t0)
             sleep(0 if t1-t0 > 0.18 else 0.18-(t1-t0))
             self.window.update()
 
@@ -366,7 +366,7 @@ class Simulation():
         self.random_iter_order = not self.random_iter_order
         print(f"random iter order = {'ON' if self.random_iter_order else 'OFF'}")
 
-    def draw_changes_only(self):
+    def toggle_draw_changes_only(self):
         ## bound to <v>
         self.only_draw_changes = not self.only_draw_changes
         print(f"ronly draw changes = {'ON' if self.only_draw_changes else 'OFF'}")
