@@ -4,7 +4,7 @@ import random
 from time import sleep, time
 from tkinter import filedialog
 from itertools import permutations
-from functools import lru_cache
+
 
 class Simulation():
 
@@ -286,6 +286,7 @@ class Simulation():
             t0 = time()
             self.step()
             t1 = time()
+            print(t1-t0)
             sleep(0 if t1-t0 > 0.18 else 0.18-(t1-t0))
             self.window.update()
 
@@ -369,7 +370,7 @@ class Simulation():
     def toggle_draw_changes_only(self):
         ## bound to <v>
         self.only_draw_changes = not self.only_draw_changes
-        print(f"ronly draw changes = {'ON' if self.only_draw_changes else 'OFF'}")
+        print(f"only draw changes = {'ON' if self.only_draw_changes else 'OFF'}")
 
     def toggle_only_change_once(self):
         ## bound to <c>
@@ -474,7 +475,6 @@ class Forces():
                     return False
         return True
 
-    @lru_cache(maxsize=10000)
     def is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
         return 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100
 
