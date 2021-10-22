@@ -28,3 +28,4 @@ other hotkeys:
 - reset default settings - shift-d
 - save - ctrl-s
 - load - ctrl-l
+- nuke - mouse button 3
