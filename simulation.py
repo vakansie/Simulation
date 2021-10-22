@@ -286,7 +286,7 @@ class Simulation():
             t0 = time()
             self.step()
             t1 = time()
-            print(t1-t0)
+            #print(t1-t0)
             sleep(0 if t1-t0 > 0.18 else 0.18-(t1-t0))
             self.window.update()
 
