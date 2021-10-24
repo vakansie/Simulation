@@ -4,6 +4,7 @@ import random
 from time import sleep, time
 from tkinter import filedialog
 from itertools import permutations
+from PIL import Image, ImageTk
 
 
 class Simulation():
@@ -24,7 +25,6 @@ class Simulation():
         self.random_spread    = True
         self.random_iter_order= True
         self.single_change    = True
-        self.loaded_simulation= False
         self.only_draw_changes= False
         self.recursion_factor = 1
         self.spread_factor    = 1
@@ -33,9 +33,12 @@ class Simulation():
         self.spin             = random.randint(0, len(self.direction_options)-1)
         self.population       = [0,0,0,0]
         self.changed_cells    = {}
+        self.color_dict       = {0: [0,0,0], 1: [0,128,21], 2: [255,0,0], 3: [255,221,51]}
         self.population_bar   = self.create_population_bar()
         self.spread_slider    = self.create_spread_slider()
         self.recursion_slider = self.create_recursion_slider()
+        self.canvas_image      = None
+        self.image_array      = numpy.ndarray(shape=(100,100,3), dtype=numpy.uint8)
         self.bind_keys()
         self.create_buttons()
         self.create_menu()
@@ -52,7 +55,7 @@ class Simulation():
         return canvas
 
     def create_array(self):
-        array = numpy.zeros((100, 100), dtype=numpy.int8)
+        array = numpy.zeros((100, 100), dtype=numpy.uint8)
         return array
 
     def clear_canvas(self):
@@ -163,83 +166,19 @@ class Simulation():
         tkinter.Button(window, text='Set Density', command=lambda: get_density(entry)).pack()
 
     def draw(self):
-
-        def convert_to_canvas(x, y):
-            x_pos, y_pos = x * self.block_size, y * self.block_size
-            return x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size
-
-        def draw_spreaders():
-            spreaders = numpy.where(self.array == 1)
-            for spreader in range(len(self.array[spreaders])):
-                x, y = spreaders[0][spreader], spreaders[1][spreader]
-                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
-                x0, y0, x1, y1 = convert_to_canvas(x, y)
-                Spreader(x0, y0, x1, y1, fill="green")
-
-        def draw_eaters():
-            eaters = numpy.where(self.array == 2)
-            for eater in range(len(self.array[eaters])):
-                x, y = eaters[0][eater], eaters[1][eater]
-                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
-                x0, y0, x1, y1 = convert_to_canvas(x, y)
-                Eater(x0, y0, x1, y1, fill="red")
-
-        def draw_cleaners():
-            cleaners = numpy.where(self.array == 3)
-            for cleaner in range(len(self.array[cleaners])):
-                x, y = cleaners[0][cleaner], cleaners[1][cleaner]
-                if self.only_draw_changes and (x, y) not in self.changed_cells: continue
-                x0, y0, x1, y1 = convert_to_canvas(x, y)
-                Cleaner(x0, y0, x1, y1, fill="yellow")
-
-
         self.clear_canvas()
-        draw_spreaders()
-        draw_eaters()
-        draw_cleaners()
+
+        for index, value in numpy.ndenumerate(self.array):
+            changed = 0 if self.only_draw_changes and (index[0], index[1]) not in self.changed_cells else 1
+            for i in range(3):
+                self.image_array[index[0],index[1], i] = self.color_dict[value][i] * changed
+
+        image_array = numpy.repeat(numpy.repeat(self.image_array,5, axis=0), 5, axis=1)
+        canvas_image =Image.fromarray(image_array, mode='RGB').transpose(Image.TRANSPOSE)
+        canvas_image.save('simulation.png')
+        self.canvas_image = ImageTk.PhotoImage(Image.open('simulation.png'))
+        self.canvas.create_image(250,250,image=self.canvas_image)
         self.draw_population_bar()
-
-    def fast_draw(self):
-
-        def draw_spreaders():
-            positions = [coords for coords, force in self.changed_cells.items() if force == 1]
-            for coords in positions:
-                x, y = coords
-                if self.last_states[-1][x][y] == 1: continue # dont bother replacing things with themselves
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                occupant = self.canvas.find_withtag(tag)
-                if occupant: self.canvas.itemconfig(occupant, fill='green')
-                else: Spreader(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "green", tags=tag)
-
-        def draw_eaters():
-            positions = [coords for coords, force in self.changed_cells.items() if force == 2]
-            for coords in positions:
-                x, y = coords
-                if self.last_states[-1][x][y] == 2: continue # dont bother replacing things with themselves
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                occupant = self.canvas.find_withtag(tag)
-                if occupant: self.canvas.itemconfig(occupant, fill='red')
-                else: Eater(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "red", tags=tag)
-
-        def draw_cleaners():
-            positions = [coords for coords, force in self.changed_cells.items() if force == 3]
-            for coords in positions:
-                x, y = coords
-                if self.last_states[-1][x][y] == 3: continue # dont bother replacing things with themselves
-                x_pos, y_pos = x * self.block_size, y * self.block_size
-                tag = f'x{x}y{y}'
-                occupant = self.canvas.find_withtag(tag)
-                if occupant: 
-                    self.canvas.itemconfig(occupant, fill='yellow')
-                else: Cleaner(x_pos, y_pos, x_pos+self.block_size, y_pos+self.block_size, fill= "yellow", tags=tag)
-
-        draw_spreaders()
-        draw_eaters()
-        draw_cleaners()
-        self.draw_population_bar()
-        self.changed_cells = {}
 
     def iterate(self):
         self.changed_cells = {}
@@ -262,7 +201,7 @@ class Simulation():
                     Cleaner.iterate(x, y, self.recursion_factor)
 
     def append_last_states(self):
-        self.last_states.append(self.array.copy())
+        self.last_states.append((self.array.copy(), self.changed_cells.copy()))
         if len(self.last_states) > 50: 
             self.last_states.remove(self.last_states[0])
 
@@ -275,7 +214,7 @@ class Simulation():
     def back(self):
         ## bound to <Left Arrow Key>
         if self.last_states:
-            self.array = self.last_states[-1]
+            self.array, self.changed_cells = self.last_states[-1]
             self.last_states.pop()
             self.draw()
 
@@ -283,11 +222,13 @@ class Simulation():
         ## bound to <Spacebar>
         self.auto_running = not self.auto_running
         while self.auto_running:
-            t0 = time()
+            # t0 = time()
             self.step()
-            t1 = time()
-            #print(t1-t0)
-            sleep(0 if t1-t0 > 0.18 else 0.18-(t1-t0))
+            # t1 = time()
+            # dt = t1-t0
+            # print(dt)
+            # pause = 0 if dt > 0.18 else 0.18-(dt)
+            # sleep(pause)
             self.window.update()
 
     def auto_back(self):
@@ -295,7 +236,6 @@ class Simulation():
         self.auto_running = not self.auto_running
         while self.auto_running:
             self.back()
-            sleep(0.1)
             self.window.update()
             if len(self.last_states) == 0: self.auto_running = False
 
@@ -311,17 +251,17 @@ class Simulation():
 
     def save_state(self):
         file = filedialog.asksaveasfilename(initialdir= ".\Save Files",title= "Save As",
-                                      filetypes = (('numpy files', '*.npy'),('All files', '*.npy')))
+                                      filetypes = (('numpy files', '*.npy'),('All files', '*.*')))
         numpy.save(f'{file}', self.array)
     
     def load_state(self):
+        self.auto_running = False
         self.set_defaults()
         file = filedialog.askopenfilename(initialdir= ".\Save Files",
                                       title     = "Select a File",
                                       filetypes = (('numpy files', '*.npy'),('All files', '*.*')))
         if not file: return
         self.array = numpy.load(file)
-        self.loaded_simulation = True
         self.seed = self.array.copy()
         self.draw()
 
@@ -428,7 +368,6 @@ class Simulation():
         ## bound to <Shift-N>
         self.array = self.create_array()
         self.auto_running = False
-        self.loaded_simulation = False
         self.last_states = []
         self.clear_canvas()
         self.clear_population_bar()
@@ -464,6 +403,7 @@ class Simulation():
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
 
 class Forces():
+
     def __init__(self, x0, x1, y0, y1, **kwargs):
         self.rectangle = simulation.canvas.create_rectangle(x0, x1, y0, y1, **kwargs)
 
@@ -481,9 +421,10 @@ class Forces():
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         random_index = random.randint(0, len(simulation.direction_options)-1)
+        index = random_index if simulation.random_spread else simulation.spin
         for loop in range(simulation.spread_factor):
-            try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: return
+            x_direction, y_direction = (simulation.direction_options*2)[index - loop]
+
             if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
@@ -504,9 +445,9 @@ class Spreader(Forces):
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         random_index = random.randint(0, len(simulation.direction_options)-1)
+        index = random_index if simulation.random_spread else simulation.spin
         for loop in range(simulation.spread_factor):
-            try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: return
+            x_direction, y_direction = (simulation.direction_options*2)[index - loop]
             if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
