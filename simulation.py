@@ -418,7 +418,7 @@ class Forces():
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        index = int(random.random() * (len(simulation.direction_options)-1)) if simulation.random_spread else simulation.spin
+        index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
@@ -442,7 +442,7 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        index = int(random.random() * (len(simulation.direction_options)-1)) if simulation.random_spread else simulation.spin
+        index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
@@ -469,7 +469,7 @@ class Eater(Forces):
 
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        index = int(random.random() * (len(simulation.direction_options)-1)) if simulation.random_spread else simulation.spin
+        index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
