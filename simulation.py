@@ -32,13 +32,14 @@ class Simulation():
         self.direction_choices= [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin             = random.randint(0, len(self.direction_options)-1)
+        self.valid_target_dict= {}
         self.population       = [0,0,0,0]
         self.changed_cells    = {}
         self.color_dict       = {0: [0,0,0], 1: [0,128,21], 2: [255,0,0], 3: [255,221,51]}
         self.population_bar   = self.create_population_bar()
         self.spread_slider    = self.create_spread_slider()
         self.recursion_slider = self.create_recursion_slider()
-        self.canvas_image      = None
+        self.canvas_image     = None
         self.image_array      = numpy.ndarray(shape=(100,100,3), dtype=numpy.uint8)
         self.bind_keys()
         self.create_buttons()
@@ -73,7 +74,7 @@ class Simulation():
                     command= lambda: self.new_simulation()).grid(row=2, column=4)
         tkinter.Button(self.window, text='<Step', borderwidth=1, font=('Verdana','18'),
                     command= lambda: self.back()).grid(row=2, column=2)
-    
+
     def create_menu(self):
         menu_bar = tkinter.Menu(self.window, tearoff=0)
         view_menu = tkinter.Menu(menu_bar)
@@ -168,17 +169,16 @@ class Simulation():
 
     def draw(self):
         self.clear_canvas()
-
-        for index, value in numpy.ndenumerate(self.array):
-            changed = 0 if self.only_draw_changes and (index[0], index[1]) not in self.changed_cells else 1
-            for i in range(3):
-                self.image_array[index[1],index[0], i] = self.color_dict[value][i] * changed
-
+        for position, square in numpy.ndenumerate(self.array):
+            if self.only_draw_changes:
+                if (position[0], position[1]) not in self.changed_cells:
+                    square = 0 
+            self.image_array[position[1],position[0], :] = self.color_dict[square]
+            
         image_array = numpy.repeat(numpy.repeat(self.image_array,5, axis=0), 5, axis=1)
         canvas_image =Image.fromarray(image_array, mode='RGB')
         self.canvas_image = ImageTk.PhotoImage(canvas_image)
         self.canvas.create_image(250,250,image=self.canvas_image)
-        
         self.draw_population_bar()
 
     def iterate(self):
@@ -400,9 +400,9 @@ class Simulation():
         green_width  = self.population[1] / max_population * self.width
         red_width    = self.population[2] / max_population * self.width
         yellow_width = self.population[3] / max_population * self.width
-        self.population_bar.create_rectangle(0, 0, green_width, 20, fill='green')
+        self.population_bar.create_rectangle(0, 0, green_width, 20, fill='#007f15')
         self.population_bar.create_rectangle(green_width, 0, green_width+red_width, 20, fill='red')
-        self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='yellow')
+        self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='#ffdd32')
 
 class Forces():
 
@@ -418,7 +418,9 @@ class Forces():
         return True
 
     def is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
-        return 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100
+        if (array_x_pos, x_direction, array_y_pos, y_direction) not in simulation.valid_target_dict:
+            simulation.valid_target_dict[(array_x_pos, x_direction, array_y_pos, y_direction)] = 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100
+        return simulation.valid_target_dict[(array_x_pos, x_direction, array_y_pos, y_direction)]
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
@@ -442,6 +444,7 @@ class Spreader(Forces):
                 if simulation.array[target_x][target_y] == 2:
                     simulation.array[array_x_pos][array_y_pos] = 2
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 2
+                    return
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
@@ -468,7 +471,8 @@ class Eater(Forces):
                 if simulation.array[target_x][target_y] == 3:
                     simulation.array[array_x_pos][array_y_pos] = 3
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 3
-            
+                    return
+
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         index = random.randint(0, len(simulation.direction_options)-1) if simulation.random_spread else simulation.spin
@@ -492,6 +496,7 @@ class Cleaner(Forces):
                 if simulation.array[target_x][target_y] == 1:
                     simulation.array[array_x_pos][array_y_pos] = 1
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 1
+                    return
 
 def main():
     global simulation
