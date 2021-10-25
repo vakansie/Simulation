@@ -11,6 +11,7 @@ class Simulation():
 
     def __init__(self):
         self.array            = self.create_array()
+        self.rng              = random  
         self.height           = 500
         self.width            = 500
         self.window           = self.create_window()
@@ -171,13 +172,13 @@ class Simulation():
         for index, value in numpy.ndenumerate(self.array):
             changed = 0 if self.only_draw_changes and (index[0], index[1]) not in self.changed_cells else 1
             for i in range(3):
-                self.image_array[index[0],index[1], i] = self.color_dict[value][i] * changed
+                self.image_array[index[1],index[0], i] = self.color_dict[value][i] * changed
 
         image_array = numpy.repeat(numpy.repeat(self.image_array,5, axis=0), 5, axis=1)
-        canvas_image =Image.fromarray(image_array, mode='RGB').transpose(Image.TRANSPOSE)
-        canvas_image.save('simulation.png')
-        self.canvas_image = ImageTk.PhotoImage(Image.open('simulation.png'))
+        canvas_image =Image.fromarray(image_array, mode='RGB')
+        self.canvas_image = ImageTk.PhotoImage(canvas_image)
         self.canvas.create_image(250,250,image=self.canvas_image)
+        
         self.draw_population_bar()
 
     def iterate(self):
@@ -236,6 +237,7 @@ class Simulation():
         self.auto_running = not self.auto_running
         while self.auto_running:
             self.back()
+            sleep(0.1)
             self.window.update()
             if len(self.last_states) == 0: self.auto_running = False
 
@@ -420,11 +422,10 @@ class Forces():
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options)-1)
-        index = random_index if simulation.random_spread else simulation.spin
-        for loop in range(simulation.spread_factor):
-            x_direction, y_direction = (simulation.direction_options*2)[index - loop]
-
+        index = random.randint(0, len(simulation.direction_options)-1) if simulation.random_spread else simulation.spin
+        directions = simulation.direction_options * 2
+        for spread in range(simulation.spread_factor):
+            x_direction, y_direction = directions[index-spread]
             if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
@@ -433,7 +434,7 @@ class Spreader(Forces):
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
                 if simulation.recursive_eating:
-                    if simulation.recursion_factor > 0 and loop < 1:
+                    if simulation.recursion_factor > 0 and spread < 1:
                         if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Spreader.iterate(target_x, target_y, recursion_factor)
@@ -444,10 +445,10 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options)-1)
-        index = random_index if simulation.random_spread else simulation.spin
-        for loop in range(simulation.spread_factor):
-            x_direction, y_direction = (simulation.direction_options*2)[index - loop]
+        index = random.randint(0, len(simulation.direction_options)-1) if simulation.random_spread else simulation.spin
+        directions = simulation.direction_options * 2
+        for spread in range(simulation.spread_factor):
+            x_direction, y_direction = directions[index-spread]
             if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
@@ -459,7 +460,7 @@ class Eater(Forces):
                 simulation.array[target_x][target_y] = 2
                 simulation.changed_cells[(target_x, target_y)] = 2
                 if simulation.recursive_eating:
-                    if simulation.recursion_factor > 0 and loop < 1:
+                    if simulation.recursion_factor > 0 and spread < 1:
                         if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Eater.iterate(target_x, target_y, recursion_factor)
@@ -470,10 +471,11 @@ class Eater(Forces):
             
 class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        random_index = random.randint(0, len(simulation.direction_options)-1)
-        for loop in range(simulation.spread_factor):
-            try: x_direction, y_direction = simulation.direction_options[(random_index - loop if simulation.random_spread else simulation.spin - loop)]
-            except IndexError: return
+        index = random.randint(0, len(simulation.direction_options)-1) if simulation.random_spread else simulation.spin
+        directions = simulation.direction_options * 2
+        for spread in range(simulation.spread_factor):
+            x_direction, y_direction = directions[index-spread]
+
             if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
@@ -482,7 +484,7 @@ class Cleaner(Forces):
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
                 if simulation.recursive_eating:
-                    if simulation.recursion_factor > 0 and loop < 1:
+                    if simulation.recursion_factor > 0 and spread < 1:
                         if random.randint(0, recursion_factor) > 0:
                             recursion_factor -= 1
                             Cleaner.iterate(target_x, target_y, recursion_factor)
