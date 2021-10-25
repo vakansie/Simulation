@@ -36,6 +36,7 @@ class Simulation():
         self.population       = [0,0,0,0]
         self.changed_cells    = {}
         self.color_dict       = {0: [0,0,0], 1: [0,128,21], 2: [255,0,0], 3: [255,221,51]}
+        self.forces_iter_dict = {1:Spreader.iterate, 2: Eater.iterate, 3: Cleaner.iterate}
         self.population_bar   = self.create_population_bar()
         self.spread_slider    = self.create_spread_slider()
         self.recursion_slider = self.create_recursion_slider()
@@ -191,15 +192,10 @@ class Simulation():
         for x in rows:
             for y in columns:
                 force = self.array[x, y]
-                #if force == 0: continue
-                #if Forces.surrounded_by_same(x, y, force_id=force): continue
+                if force in {0}: continue
                 condition = (x, y) not in self.changed_cells if self.single_change else True
-                if force == 1 and condition:
-                    Spreader.iterate(x, y, self.recursion_factor)
-                elif force == 2 and condition:
-                    Eater.iterate(x, y, self.recursion_factor)
-                elif force == 3 and condition:
-                    Cleaner.iterate(x, y, self.recursion_factor)
+                if condition:
+                    self.forces_iter_dict[force](x, y, self.recursion_factor)
 
     def append_last_states(self):
         self.last_states.append((self.array.copy(), self.changed_cells.copy()))
@@ -422,10 +418,8 @@ class Spreader(Forces):
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
-            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
-                target_x = array_x_pos + x_direction
-                target_y = array_y_pos + y_direction
-            else: continue
+            target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
+            if not Forces.is_valid_index(target_x, target_y): continue
             if simulation.array[target_x][target_y] in {0,3}:
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
@@ -446,10 +440,8 @@ class Eater(Forces):
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
-            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
-                target_x = array_x_pos + x_direction
-                target_y = array_y_pos + y_direction
-            else: continue
+            target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
+            if not Forces.is_valid_index(target_x, target_y): continue
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
                 simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
@@ -473,11 +465,8 @@ class Cleaner(Forces):
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
-
-            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
-                target_x = array_x_pos + x_direction
-                target_y = array_y_pos + y_direction
-            else: continue
+            target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
+            if not Forces.is_valid_index(target_x, target_y): continue
             if simulation.array[target_x][target_y] in {0,2}:
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
