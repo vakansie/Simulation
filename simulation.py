@@ -193,7 +193,7 @@ class Simulation():
                 force = self.array[x, y]
                 #if force == 0: continue
                 #if Forces.surrounded_by_same(x, y, force_id=force): continue
-                condition = (((x, y) not in self.changed_cells) if self.single_change else True)
+                condition = (x, y) not in self.changed_cells if self.single_change else True
                 if force == 1 and condition:
                     Spreader.iterate(x, y, self.recursion_factor)
                 elif force == 2 and condition:
@@ -223,13 +223,7 @@ class Simulation():
         ## bound to <Spacebar>
         self.auto_running = not self.auto_running
         while self.auto_running:
-            # t0 = time()
             self.step()
-            # t1 = time()
-            # dt = t1-t0
-            # print(dt)
-            # pause = 0 if dt > 0.18 else 0.18-(dt)
-            # sleep(pause)
             self.window.update()
 
     def auto_back(self):
@@ -417,10 +411,10 @@ class Forces():
                     return False
         return True
 
-    def is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
-        if (array_x_pos, x_direction, array_y_pos, y_direction) not in simulation.valid_target_dict:
-            simulation.valid_target_dict[(array_x_pos, x_direction, array_y_pos, y_direction)] = 0 <= array_x_pos + x_direction < 100 and 0 <= array_y_pos + y_direction < 100
-        return simulation.valid_target_dict[(array_x_pos, x_direction, array_y_pos, y_direction)]
+    def is_valid_index(target_x, target_y):
+        if target_x not in {-1,100} and target_y not in {-1,100}:
+            return True
+        return False
 
 class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
@@ -428,11 +422,11 @@ class Spreader(Forces):
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
-            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
+            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
-            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 3:
+            if simulation.array[target_x][target_y] in {0,3}:
                 simulation.array[target_x][target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
                 if simulation.recursive_eating:
@@ -452,14 +446,14 @@ class Eater(Forces):
         directions = simulation.direction_options * 2
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
-            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
+            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
             if simulation.array[target_x][target_y] == 0:
                 simulation.array[array_x_pos][array_y_pos] = 0
                 simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
-            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 1:
+            if simulation.array[target_x][target_y] in {0,1}:
                 simulation.array[target_x][target_y] = 2
                 simulation.changed_cells[(target_x, target_y)] = 2
                 if simulation.recursive_eating:
@@ -480,11 +474,11 @@ class Cleaner(Forces):
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
 
-            if Forces.is_valid_index(array_x_pos, x_direction, array_y_pos, y_direction):
+            if Forces.is_valid_index(array_x_pos + x_direction, array_y_pos + y_direction):
                 target_x = array_x_pos + x_direction
                 target_y = array_y_pos + y_direction
             else: continue
-            if simulation.array[target_x][target_y] == 0 or simulation.array[target_x][target_y] == 2:
+            if simulation.array[target_x][target_y] in {0,2}:
                 simulation.array[target_x][target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
                 if simulation.recursive_eating:
