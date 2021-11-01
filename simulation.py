@@ -19,7 +19,7 @@ class Simulation():
         self.canvas           = self.create_canvas()
         self.block_size       = 5
         self.last_states      = []
-        self.seed             = []
+        self.seed             = None
         self.seed_density     = 100
         self.auto_running     = False
         self.faster_eating    = False
@@ -32,7 +32,7 @@ class Simulation():
         self.direction_choices= [-1, -1, 0, 1, 1]
         self.direction_options= list(dict.fromkeys(list(permutations(self.direction_choices, 2))))
         self.spin             = random.randint(0, len(self.direction_options)-1)
-        self.population       = [0,0,0,0]
+        self.population       = {0:0, 1:0, 2:0, 3:0}
         self.changed_cells    = {}
         self.color_dict       = {0: [0,0,0], 1: [0,128,21], 2: [255,0,0], 3: [255,221,51]}
         self.forces_iter_dict = {1:Spreader.iterate, 2: Eater.iterate, 3: Cleaner.iterate}
@@ -188,7 +188,7 @@ class Simulation():
         for x in self.array_rows:
             for y in self.array_columns:
                 force = self.array[x, y]
-                if force in {0}: continue
+                if not force: continue
                 condition = (x, y) not in self.changed_cells if self.single_change else True
                 if condition:
                     self.forces_iter_dict[force](x, y, self.recursion_factor)
@@ -367,16 +367,15 @@ class Simulation():
         nuke_radius = 10
         array_x, array_y = round((mouse_click.x)/5), round((mouse_click.y)/5)
         for row in range(array_x - nuke_radius, array_x + nuke_radius):
-            for column in range(array_y - 10, array_y + 10):
-                try: self.array[max(row, 0), max(column, 0)] = 0
+            for column in range(array_y - nuke_radius, array_y + nuke_radius):
+                try: self.array[row, column] = 0
                 except IndexError: continue
         self.draw()
         self.window.update()
 
     def get_population(self):
-        for force in range(len(self.population)):
-            count = len(self.array[numpy.where(self.array == force)])
-            self.population[force] = count
+        for force in [1,2,3]:
+            self.population[force] = len(self.array[numpy.where(self.array == force)])
 
     def draw_population_bar(self):
         self.clear_population_bar()
@@ -390,7 +389,6 @@ class Simulation():
         self.population_bar.create_rectangle(green_width+red_width, 0, green_width+red_width+yellow_width, 20, fill='#ffdd32')
 
 class Forces():
-    
     def is_valid_index(target_x, target_y):
             return target_x not in {-1,100} and target_y not in {-1,100}
 
@@ -398,7 +396,7 @@ class Spreader(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
-        backfires = set()
+        if simulation.faster_eating: backfires = set()
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
             target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
@@ -406,7 +404,7 @@ class Spreader(Forces):
             if simulation.array[target_x, target_y] in {0,3}:
                 simulation.array[target_x, target_y] = 1
                 simulation.changed_cells[(target_x, target_y)] = 1
-                if simulation.recursion_factor and spread < 1:
+                if simulation.recursion_factor:
                     if int(random.random() * (recursion_factor + 1)) > 0:
                         recursion_factor -= 1
                         Spreader.iterate(target_x, target_y, recursion_factor)
@@ -420,23 +418,27 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
+        
         index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
-        backfires = set()
+        if simulation.faster_eating: backfires = set()
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
             target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
             if not Forces.is_valid_index(target_x, target_y): continue
             if simulation.array[target_x, target_y] in {0,1}:
                 if simulation.array[target_x, target_y] == 0:
+                    if not simulation.array[array_x_pos, array_y_pos]: return
                     simulation.array[array_x_pos, array_y_pos] = 0
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
+
                 simulation.array[target_x, target_y] = 2
                 simulation.changed_cells[(target_x, target_y)] = 2
-                if simulation.recursion_factor and spread < 1:
+                if simulation.recursion_factor:
                     if int(random.random() * (recursion_factor + 1)) > 0:
                         recursion_factor -= 1
                         Eater.iterate(target_x, target_y, recursion_factor)
+
             if simulation.faster_eating:
                 if simulation.array[target_x, target_y] == 3:
                     backfires.add((array_x_pos, array_y_pos))
@@ -449,7 +451,7 @@ class Cleaner(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
         index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
-        backfires = set()
+        if simulation.faster_eating: backfires = set()
         for spread in range(simulation.spread_factor):
             x_direction, y_direction = directions[index-spread]
             target_x, target_y = array_x_pos + x_direction, array_y_pos + y_direction
@@ -457,7 +459,7 @@ class Cleaner(Forces):
             if simulation.array[target_x, target_y] in {0,2}:
                 simulation.array[target_x, target_y] = 3
                 simulation.changed_cells[(target_x, target_y)] = 3
-                if simulation.recursion_factor and spread < 1:
+                if simulation.recursion_factor:
                     if int(random.random() * (recursion_factor + 1)) > 0:
                         recursion_factor -= 1
                         Cleaner.iterate(target_x, target_y, recursion_factor)
