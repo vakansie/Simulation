@@ -418,7 +418,6 @@ class Spreader(Forces):
 
 class Eater(Forces):
     def iterate(array_x_pos, array_y_pos, recursion_factor):
-        
         index = int(random.random() * len(simulation.direction_options)) if simulation.random_spread else simulation.spin
         directions = simulation.direction_options * 2
         if simulation.faster_eating: backfires = set()
@@ -431,14 +430,12 @@ class Eater(Forces):
                     if not simulation.array[array_x_pos, array_y_pos]: return
                     simulation.array[array_x_pos, array_y_pos] = 0
                     simulation.changed_cells[(array_x_pos, array_y_pos)] = 0
-
                 simulation.array[target_x, target_y] = 2
                 simulation.changed_cells[(target_x, target_y)] = 2
                 if simulation.recursion_factor:
                     if int(random.random() * (recursion_factor + 1)) > 0:
                         recursion_factor -= 1
                         Eater.iterate(target_x, target_y, recursion_factor)
-
             if simulation.faster_eating:
                 if simulation.array[target_x, target_y] == 3:
                     backfires.add((array_x_pos, array_y_pos))
