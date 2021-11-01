@@ -17,7 +17,7 @@ by default:
 | cells spread in random direction                         | toggle random spread     | `x`                 |               |
 | cells spread to 1 of their 8 neighboring cells           | toggle diagonal spread   | `d`                 |               |
 | an unsuccesfull spread can't backfire                    | toggle reverse eating    | `f`                 |               |
-| a succesfull spread wont recursicely try to spread again | toggle recursive eating  | `r` --> hotkey '<>' | bottom slider |
+| a succesfull spread wont recursively try to spread again | toggle recursive eating  | `r` --> hotkey '<>' | bottom slider |
 | a cell can only change once per iteration                | toggle only change once  | `c`                 |               |
 | the seed density is 100 random squares in random places  | set seed density         | menu option                |               |
 | all cells are drawn                                      | toggle only draw changed | `v`                 |               |
