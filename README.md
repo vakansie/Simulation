@@ -1,31 +1,5 @@
 # Simulation
 
-# Installation using pipenv
-
- 1. `tkinter` is not installable through pip and therefore must be installed manually. See [documentation](https://tkdocs.com/tutorial/install.html). 
- 2. Make sure `pipenv` is installed on your platform using `pip install pipenv`.
- 3. Install all required packages using `pipenv install`
-
-## About `pipenv`
-`pipenv` is used for bundling dependencies. Dependencies are defined in `./Pipfile` and versions are pinned down using `./Pipfile.lock`.
-
-### Adding new dependencies
-
-eg. for adding numpy
-
-```bash
-pipenv install numpy
-```
-
-### Updating dependencies
-
-```bash
-pipenv update
-git add Pipfile.lock
-git commit -m "Updated Dependencies"
-```
-
-
 # cellular automaton
 
 red can spread on green,
@@ -58,3 +32,29 @@ by default:
 - save - `ctrl-s`
 - load - `ctrl-l`
 - nuke - mouse button 3
+
+
+# Installation using pipenv
+
+ 1. `tkinter` is not installable through pip and therefore must be installed manually. See [documentation](https://tkdocs.com/tutorial/install.html). 
+ 2. Make sure `pipenv` is installed on your platform using `pip install pipenv`.
+ 3. Install all required packages using `pipenv install`
+
+## About `pipenv`
+`pipenv` is used for bundling dependencies. Dependencies are defined in `./Pipfile` and versions are pinned down using `./Pipfile.lock`.
+
+### Adding new dependencies
+
+eg. for adding numpy
+
+```bash
+pipenv install numpy
+```
+
+### Updating dependencies
+
+```bash
+pipenv update
+git add Pipfile.lock
+git commit -m "Updated Dependencies"
+```
