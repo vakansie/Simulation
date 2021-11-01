@@ -1,7 +1,7 @@
 import tkinter
 import numpy
 import random
-from time import sleep, time
+from time import sleep
 from tkinter import filedialog
 from itertools import permutations
 from PIL import Image, ImageTk
